@@ -25,6 +25,96 @@ function getSlotTypeField(slot: string): string {
 }
 
 /**
+ * Build a reverse wiring map: for each bracket match, count how many
+ * other matches wire their winner or loser INTO each slot (A/B).
+ */
+async function buildWiringMap(
+  ac: ReturnType<typeof createAdminClient>,
+  categoryId: string,
+): Promise<Map<string, { a: number; b: number }>> {
+  const { data: allMatches } = await ac
+    .from("bracket_matches")
+    .select("id, winner_next_match_id, winner_next_slot, loser_next_match_id, loser_next_slot")
+    .eq("tournament_category_id", categoryId)
+
+  const map = new Map<string, { a: number; b: number }>()
+  if (!allMatches) return map
+
+  for (const m of allMatches) {
+    if (m.winner_next_match_id && m.winner_next_slot) {
+      const entry = map.get(m.winner_next_match_id) || { a: 0, b: 0 }
+      if (m.winner_next_slot === "A") entry.a++
+      else entry.b++
+      map.set(m.winner_next_match_id, entry)
+    }
+    if (m.loser_next_match_id && m.loser_next_slot) {
+      const entry = map.get(m.loser_next_match_id) || { a: 0, b: 0 }
+      if (m.loser_next_slot === "A") entry.a++
+      else entry.b++
+      map.set(m.loser_next_match_id, entry)
+    }
+  }
+
+  return map
+}
+
+/**
+ * Check if a bracket match is a bye (1 player present, empty slot has
+ * zero incoming wiring). If so, auto-complete and advance the winner.
+ * Handles chains of consecutive byes iteratively.
+ */
+async function checkAndHandleBye(
+  ac: ReturnType<typeof createAdminClient>,
+  matchId: string,
+  wiringMap: Map<string, { a: number; b: number }>,
+): Promise<void> {
+  let currentId = matchId
+  const visited = new Set<string>()
+
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId)
+
+    const { data: target } = await ac
+      .from("bracket_matches")
+      .select("id, player_a_id, player_b_id, status, winner_next_match_id, winner_next_slot")
+      .eq("id", currentId)
+      .single()
+
+    if (!target || target.status !== "pending") return
+
+    const hasA = !!target.player_a_id
+    const hasB = !!target.player_b_id
+    if (hasA === hasB) return // Both or neither — not a bye
+
+    const emptySlot = hasA ? "B" : "A"
+    const playerId = target.player_a_id || target.player_b_id
+    if (!playerId) return
+
+    const wiring = wiringMap.get(currentId) || { a: 0, b: 0 }
+    if ((emptySlot === "A" && wiring.a > 0) || (emptySlot === "B" && wiring.b > 0)) {
+      return // Opponent expected — not a bye
+    }
+
+    // It's a bye — auto-complete and advance
+    await ac
+      .from("bracket_matches")
+      .update({ status: "completed", winner_id: playerId })
+      .eq("id", currentId)
+
+    if (!target.winner_next_match_id || !target.winner_next_slot) return
+
+    const slotField = getSlotField(target.winner_next_slot)
+    const typeField = getSlotTypeField(target.winner_next_slot)
+    await ac
+      .from("bracket_matches")
+      .update({ [slotField]: playerId, [typeField]: "player" })
+      .eq("id", target.winner_next_match_id)
+
+    currentId = target.winner_next_match_id
+  }
+}
+
+/**
  * Advance a bracket match result by:
  *  1. Updating the match status, winner_id, loser_id
  *  2. replacing games
@@ -102,6 +192,9 @@ export async function advanceMatch(
 
   const winnerSlot = match.player_a_id === winnerId ? "A" : "B"
 
+  // Build wiring map for runtime bye detection
+  const wiringMap = await buildWiringMap(ac, match.tournament_category_id)
+
   const { error: updateError } = await ac
     .from("bracket_matches")
     .update({
@@ -140,6 +233,7 @@ export async function advanceMatch(
       .update({ [slotField]: winnerId, [typeField]: "player" })
       .eq("id", match.winner_next_match_id)
     await activateMatchIfNeeded(ac, match.winner_next_match_id)
+    await checkAndHandleBye(ac, match.winner_next_match_id, wiringMap)
   }
 
   if (match.loser_next_slot) {
@@ -150,6 +244,7 @@ export async function advanceMatch(
       .update({ [slotField]: loserId, [typeField]: "player" })
       .eq("id", match.loser_next_match_id)
     await activateMatchIfNeeded(ac, match.loser_next_match_id)
+    await checkAndHandleBye(ac, match.loser_next_match_id, wiringMap)
   }
 
   // Update ELO ratings and rankings

@@ -23,12 +23,9 @@ import {
   ArrowDown,
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
-import type {
-  BracketMatch,
-  BracketSide,
-} from "@/lib/types"
+import type { BracketMatch, BracketSide } from "@/lib/types"
 
-interface BracketTreeProps {
+interface BracketTreeDoubleProps {
   bracketMatches: BracketMatch[]
   slug: string
   isManager: boolean
@@ -48,36 +45,29 @@ interface BracketSection {
   rounds: BracketRound[]
 }
 
-const ROUND_LABELS: Record<number, string> = {
-  1: "Final",
-  2: "Semi-finals",
-  3: "Quarter-finals",
-  4: "Round of 16",
-  5: "Round of 32",
-  6: "Round of 64",
-}
-
-function getRoundLabel(roundNumber: number, totalRounds: number): string {
-  const fromFinal = totalRounds - roundNumber + 1
-  return ROUND_LABELS[fromFinal] || `Round ${roundNumber}`
-}
-
 function buildSections(bracketMatches: BracketMatch[]): BracketSection[] {
-  const sides = [...new Set(bracketMatches.map((m) => m.bracket_side))]
+  const sideOrder: BracketSide[] = [
+    "winners",
+    "losers",
+    "grand_final",
+    "third_place",
+    "single",
+  ]
+
   const sections: BracketSection[] = []
 
-  // Desired order for display
-  const sideOrder: BracketSide[] = ["winners", "losers", "grand_final", "third_place", "single"]
-
   for (const side of sideOrder) {
-    if (!sides.includes(side)) continue
     const sideMatches = bracketMatches.filter((m) => m.bracket_side === side)
-    const roundNumbers = [...new Set(sideMatches.map((m) => m.round_number))].sort((a, b) => a - b)
+    if (sideMatches.length === 0) continue
+
+    const roundNumbers = [
+      ...new Set(sideMatches.map((m) => m.round_number)),
+    ].sort((a, b) => a - b)
     const maxRound = Math.max(...roundNumbers)
 
     const rounds: BracketRound[] = roundNumbers.map((rn) => ({
       roundNumber: rn,
-      label: getRoundLabel(rn, maxRound),
+      label: getRoundLabel(rn, maxRound, side),
       matches: sideMatches
         .filter((m) => m.round_number === rn)
         .sort((a, b) => a.match_index - b.match_index),
@@ -91,8 +81,8 @@ function buildSections(bracketMatches: BracketMatch[]): BracketSection[] {
           : side === "grand_final"
             ? "Grand Final"
             : side === "third_place"
-                ? "Third Place"
-                : "Bracket"
+              ? "Third Place"
+              : "Bracket"
 
     sections.push({ side, label, rounds })
   }
@@ -100,13 +90,43 @@ function buildSections(bracketMatches: BracketMatch[]): BracketSection[] {
   return sections
 }
 
-export function BracketTree({
+function getRoundLabel(roundNumber: number, maxRound: number, side: BracketSide): string {
+  if (side === "losers") {
+    const lbIndex = roundNumber - 1
+    const isTypeA = lbIndex % 2 === 0
+    // Total WB rounds derived from total LB rounds: totalWB = maxRound/2 + 1
+    const totalWBRounds = Math.floor(maxRound / 2) + 1
+    if (isTypeA) {
+      if (lbIndex === 0) return "WB R1 Losers"
+      return `Compression ${Math.floor(lbIndex / 2)}`
+    } else {
+      const wbRound = Math.floor(lbIndex / 2) + 2
+      if (wbRound === totalWBRounds) return "WB Final Drop"
+      return `WB R${wbRound} Drop`
+    }
+  }
+  if (side === "grand_final" || side === "third_place") {
+    return ""
+  }
+  const fromFinal = maxRound - roundNumber + 1
+  const labels: Record<number, string> = {
+    1: "Final",
+    2: "Semi-finals",
+    3: "Quarter-finals",
+    4: "Round of 16",
+    5: "Round of 32",
+    6: "Round of 64",
+  }
+  return labels[fromFinal] || `Round ${roundNumber}`
+}
+
+export function BracketTreeDouble({
   bracketMatches,
   slug,
   isManager,
   onMatchUpdate,
   playerNameMap,
-}: BracketTreeProps) {
+}: BracketTreeDoubleProps) {
   const [scoreTarget, setScoreTarget] = useState<BracketMatch | null>(null)
   const [games, setGames] = useState<{ score_a: number; score_b: number }[]>([
     { score_a: 0, score_b: 0 },
@@ -200,9 +220,9 @@ export function BracketTree({
 
   return (
     <>
-      <div className="space-y-10">
+      <div className="space-y-12">
         {sections.map((section) => (
-          <BracketSection
+          <DoubleElimSection
             key={section.side}
             section={section}
             slug={slug}
@@ -341,7 +361,7 @@ export function BracketTree({
   )
 }
 
-function BracketSection({
+function DoubleElimSection({
   section,
   slug,
   isManager,
@@ -357,7 +377,7 @@ function BracketSection({
   const containerRef = useRef<HTMLDivElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
   const matchRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-  const [connectors, setConnectors] = useState<
+  const [intraConnectors, setIntraConnectors] = useState<
     Array<{ from: string; to: string; type: "winner" | "loser" }>
   >([])
 
@@ -369,7 +389,7 @@ function BracketSection({
     [],
   )
 
-  // Compute connector lines
+  // Compute intra-section connector lines (winner_next within same section)
   useEffect(() => {
     const timer = setTimeout(() => {
       const newConnectors: Array<{
@@ -378,32 +398,24 @@ function BracketSection({
         type: "winner" | "loser"
       }> = []
 
+      const sectionMatchIds = new Set(
+        section.rounds.flatMap((r) => r.matches.map((m) => m.id)),
+      )
+
       for (const match of section.rounds.flatMap((r) => r.matches)) {
-        if (match.winner_next_match_id) {
+        if (match.winner_next_match_id && sectionMatchIds.has(match.winner_next_match_id)) {
           newConnectors.push({
             from: match.id,
             to: match.winner_next_match_id,
             type: "winner",
           })
         }
-        if (match.loser_next_match_id) {
-          newConnectors.push({
-            from: match.id,
-            to: match.loser_next_match_id,
-            type: "loser",
-          })
-        }
       }
 
-      setConnectors(newConnectors)
+      setIntraConnectors(newConnectors)
     }, 100)
     return () => clearTimeout(timer)
   }, [section])
-
-  const isSingleBracket =
-    section.side === "single" ||
-    section.side === "grand_final" ||
-    section.side === "third_place"
 
   return (
     <section>
@@ -419,48 +431,48 @@ function BracketSection({
 
       <div className="overflow-x-auto pb-4" ref={containerRef}>
         <div className="relative flex gap-6 min-w-max" ref={innerRef}>
-          {/* SVG Connector Lines - inside relative container before rounds so cards overlay */}
+          {/* SVG Connector Lines */}
           <svg
             className="absolute top-0 left-0 w-full h-full pointer-events-none"
             style={{ zIndex: 0 }}
           >
-          {connectors.map((conn) => {
-            const fromEl = matchRefs.current.get(conn.from)
-            const toEl = matchRefs.current.get(conn.to)
-            if (!fromEl || !toEl) return null
+            {intraConnectors.map((conn) => {
+              const fromEl = matchRefs.current.get(conn.from)
+              const toEl = matchRefs.current.get(conn.to)
+              if (!fromEl || !toEl) return null
 
-            const inner = innerRef.current
-            if (!inner) return null
+              const inner = innerRef.current
+              if (!inner) return null
 
-            const innerRect = inner.getBoundingClientRect()
-            const fromRect = fromEl.getBoundingClientRect()
-            const toRect = toEl.getBoundingClientRect()
+              const innerRect = inner.getBoundingClientRect()
+              const fromRect = fromEl.getBoundingClientRect()
+              const toRect = toEl.getBoundingClientRect()
 
-            const x1 = fromRect.right - innerRect.left
-            const y1 = fromRect.top + fromRect.height / 2 - innerRect.top
-            const x2 = toRect.left - innerRect.left
-            const y2 = toRect.top + toRect.height / 2 - innerRect.top
+              const x1 = fromRect.right - innerRect.left
+              const y1 = fromRect.top + fromRect.height / 2 - innerRect.top
+              const x2 = toRect.left - innerRect.left
+              const y2 = toRect.top + toRect.height / 2 - innerRect.top
 
-            const midX = (x1 + x2) / 2
+              const midX = (x1 + x2) / 2
 
-            return (
-              <path
-                key={`${conn.from}-${conn.to}`}
-                d={`M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`}
-                fill="none"
-                stroke={
-                  conn.type === "loser"
-                    ? "hsl(var(--muted-foreground) / 0.3)"
-                    : "hsl(var(--primary) / 0.4)"
-                }
-                strokeWidth={1.5}
-                strokeDasharray={conn.type === "loser" ? "4,4" : "none"}
-              />
-            )
-          })}
-        </svg>
+              return (
+                <path
+                  key={`${conn.from}-${conn.to}`}
+                  d={`M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`}
+                  fill="none"
+                  stroke={
+                    conn.type === "loser"
+                      ? "hsl(var(--muted-foreground) / 0.3)"
+                      : "hsl(var(--primary) / 0.4)"
+                  }
+                  strokeWidth={1.5}
+                  strokeDasharray={conn.type === "loser" ? "4,4" : "none"}
+                />
+              )
+            })}
+          </svg>
 
-          {section.rounds.map((round, roundIdx) => (
+          {section.rounds.map((round) => (
             <div
               key={round.roundNumber}
               className="flex flex-col w-[220px] shrink-0"
@@ -525,13 +537,8 @@ const BracketMatchCard = ({
   const aName = getPlayerName(match.player_a_id)
   const bName = getPlayerName(match.player_b_id)
 
-  // Build label for TBD matches
-  const aLabel = match.player_a_id
-    ? aName
-    : `TBD`
-  const bLabel = match.player_b_id
-    ? bName
-    : `TBD`
+  const aLabel = match.player_a_id ? aName : "TBD"
+  const bLabel = match.player_b_id ? bName : "TBD"
 
   return (
     <Card
@@ -540,14 +547,14 @@ const BracketMatchCard = ({
         "min-w-[200px] relative",
         ongoing && "ring-2 ring-primary/20",
         completed && "border-primary/30",
-        (isPending && !isBye) && "border-dashed opacity-70",
+        isPending && !isBye && "border-dashed opacity-70",
         isBye && "bg-muted/30",
       )}
     >
       <CardContent className="p-3">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] font-mono text-muted-foreground">
-            {match.bracket_side === "single" || match.bracket_side === "winners"
+            {match.bracket_side === "winners"
               ? `M${match.match_index + 1}`
               : match.bracket_side === "losers"
                 ? `L${match.round_number}-${match.match_index + 1}`
@@ -595,7 +602,9 @@ const BracketMatchCard = ({
               )}
             >
               {aLabel}
-              {aWon && <span className="ml-1 text-[10px]">{"\uD83D\uDC51"}</span>}
+              {aWon && (
+                <span className="ml-1 text-[10px]">{"\uD83D\uDC51"}</span>
+              )}
             </Link>
             {sortedGames.map((g) => (
               <span
@@ -628,7 +637,9 @@ const BracketMatchCard = ({
               )}
             >
               {bLabel}
-              {bWon && <span className="ml-1 text-[10px]">{"\uD83D\uDC51"}</span>}
+              {bWon && (
+                <span className="ml-1 text-[10px]">{"\uD83D\uDC51"}</span>
+              )}
             </Link>
             {sortedGames.map((g) => (
               <span

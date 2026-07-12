@@ -127,7 +127,6 @@ export default async function OrgPage({
             return `LB ${ROUND_LABELS[fromFinal] || `R${roundNumber}`}`;
           }
           if (bracketSide === "grand_final") return "Grand Final";
-          if (bracketSide === "grand_final_reset") return "Grand Final Reset";
           if (bracketSide === "third_place") return "3rd Place";
           return "";
         }

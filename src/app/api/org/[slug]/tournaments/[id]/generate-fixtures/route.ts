@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { generateBracket, type Participant } from "@/lib/bracket-engine"
 import { activatePendingMatches } from "@/lib/advance-match"
-import type { BracketType, SeedingMethod, ByeHandling, GrandFinalMode } from "@/lib/types"
+import type { BracketType, SeedingMethod, ByeHandling } from "@/lib/types"
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params
@@ -39,7 +39,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     seedingMethod = "ranked" as SeedingMethod,
     byeHandling = "top_seeds_get_byes" as ByeHandling,
     thirdPlaceMatch = false,
-    grandFinalMode = "true_double_elim_reset" as GrandFinalMode,
   } = body
 
   if (!categoryId) {
@@ -144,7 +143,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     seedingMethod,
     byeHandling,
     thirdPlaceMatch,
-    grandFinalMode,
   })
 
   if (bracket.matches.length === 0) {
@@ -171,7 +169,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       seeding_method: seedingMethod,
       bye_handling: byeHandling,
       third_place_match: thirdPlaceMatch,
-      grand_final_mode: grandFinalMode,
       generated_at: new Date().toISOString(),
     }, { onConflict: "tournament_category_id" })
 
@@ -240,23 +237,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const updates: Record<string, string | null> = {}
 
     if (m.winnerNextMatchIndex !== null) {
-      // Find the target match by looking at where this match's winner goes
-      // For single/losers bracket: winner goes to next round at winnerNextMatchIndex
-      // For grand_final, the target is already set via the engine
       const targetSide = m.bracketSide === "grand_final" ? "grand_final" :
         m.bracketSide === "losers" ? "losers" : m.bracketSide === "single" ? "single" : "winners"
 
-      let targetRound: number
-      let targetIndex: number
-
       if (m.bracketSide === "grand_final") {
-        // Grand final winner doesn't advance
         updates.winner_next_match_id = null
         updates.winner_next_slot = null
       } else if (m.bracketSide === "losers") {
-        // LB matches advance within the losers bracket
-        targetRound = m.roundNumber + 1
-        targetIndex = m.winnerNextMatchIndex
+        const targetRound = m.roundNumber + 1
+        const targetIndex = m.winnerNextMatchIndex
         const targetKey = `${targetSide}:${targetRound}:${targetIndex}`
         const targetId = matchIdLookup.get(targetKey)
         if (targetId) {
@@ -264,9 +253,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
           updates.winner_next_slot = m.winnerNextSlot
         }
       } else {
-        // Winners bracket
-        targetRound = m.roundNumber + 1
-        targetIndex = m.winnerNextMatchIndex
+        const targetRound = m.roundNumber + 1
+        const targetIndex = m.winnerNextMatchIndex
         const targetKey = `${targetSide}:${targetRound}:${targetIndex}`
         const targetId = matchIdLookup.get(targetKey)
         if (targetId) {
@@ -277,14 +265,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     }
 
     // Loser next match
-    if (m.loserNextMatchIndex !== null) {
+    if (m.loserNextMatchIndex !== null && m.loserNextSlot !== null) {
       if (m.bracketSide === "winners") {
         // WB loser drops to LB
+        // Engine sets loserNextMatchIndex = match index within the target LB round.
+        // We compute the correct LB round number:
+        //   WB R1 → LB round 1 (Type A compression)
+        //   WB R(k) for 2 ≤ k < R → LB round 2*(k-1) (Type B drop)
+        //   WB R(R) final → last LB round
         let lbTargetRound: number
         if (m.roundNumber === 1) {
           lbTargetRound = 1
+        } else if (m.roundNumber === Math.log2(bracket.bracketSize)) {
+          lbTargetRound = bracket.totalRounds
         } else {
-          lbTargetRound = m.roundNumber
+          lbTargetRound = 2 * (m.roundNumber - 1)
         }
         const targetKeyCorrect = `losers:${lbTargetRound}:${m.loserNextMatchIndex}`
         const targetId = matchIdLookup.get(targetKeyCorrect)
@@ -293,23 +288,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
           updates.loser_next_slot = m.loserNextSlot
         }
       } else if (m.bracketSide === "losers") {
-        // LB loser is eliminated (no next match)
         updates.loser_next_match_id = null
         updates.loser_next_slot = null
       } else if (m.bracketSide === "third_place") {
         updates.loser_next_match_id = null
         updates.loser_next_slot = null
-      }
-    }
-
-    // Handle WB final loser → LB final
-    if (m.bracketSide === "winners" && m.roundNumber === Math.log2(bracket.bracketSize)) {
-      // This is the WB final
-      const lbFinalKey = `losers:${bracket.matches.filter(x => x.bracketSide === "losers").length > 0 ? Math.max(...bracket.matches.filter(x => x.bracketSide === "losers").map(x => x.roundNumber)) : 1}:0`
-      const lbFinalId = matchIdLookup.get(lbFinalKey)
-      if (lbFinalId) {
-        updates.loser_next_match_id = lbFinalId
-        updates.loser_next_slot = "B"
       }
     }
 
@@ -323,8 +306,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       }
     }
 
-    // Handle LB final winner → grand final
-    if (m.bracketSide === "losers" && m.roundNumber === bracket.totalRounds) {
+    // Handle last LB round winner → grand final
+    if (m.bracketSide === "losers" && m.roundNumber === bracket.totalRounds && m.matchIndex === 0) {
       const gfKey = "grand_final:1:0"
       const gfId = matchIdLookup.get(gfKey)
       if (gfId) {
@@ -343,27 +326,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       }
     }
 
-    // Handle WB first round loser → LB first round
-    if (m.bracketSide === "winners" && m.roundNumber === 1) {
-      const lbKey = `losers:1:${m.matchIndex}`
-      const lbId = matchIdLookup.get(lbKey)
-      if (lbId) {
-        updates.loser_next_match_id = lbId
-        updates.loser_next_slot = "B"
-      }
-    }
-
-    // Handle WB round 2+ loser → LB
-    if (m.bracketSide === "winners" && m.roundNumber >= 2 && m.roundNumber < Math.log2(bracket.bracketSize)) {
-      const lbTargetRound = m.roundNumber
-      const lbKey = `losers:${lbTargetRound}:${m.matchIndex}`
-      const lbId = matchIdLookup.get(lbKey)
-      if (lbId) {
-        updates.loser_next_match_id = lbId
-        updates.loser_next_slot = "B"
-      }
-    }
-
     if (Object.keys(updates).length > 0) {
       await adminClient
         .from("bracket_matches")
@@ -374,6 +336,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   // Activate any pending matches that already have both players (e.g. from byes)
   await activatePendingMatches(tc.id)
+
+  // Note: LB bye detection (auto-completing matches with only 1 possible player)
+  // is handled at runtime in advanceMatch, not here. At generation time no matches
+  // have been played yet, so we cannot distinguish "waiting for opponent" from "bye".
 
   return NextResponse.json({
     success: true,

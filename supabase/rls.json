@@ -1,0 +1,532 @@
+[
+  {
+    "schemaname": "public",
+    "tablename": "activity_log",
+    "policyname": "Org members can read activity log",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(current_org_role(organization_id) IS NOT NULL)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "activity_log",
+    "policyname": "System can insert activity log",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "using_expression": null,
+    "with_check": "true"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "announcements",
+    "policyname": "Anyone can read announcements for active orgs",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM organizations\n  WHERE ((organizations.id = announcements.organization_id) AND (organizations.is_active = true))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "announcements",
+    "policyname": "Managers can delete announcements",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "DELETE",
+    "using_expression": "(current_org_role(organization_id) = 'manager'::text)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "announcements",
+    "policyname": "Managers can manage announcements",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "using_expression": null,
+    "with_check": "(current_org_role(organization_id) = 'manager'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "announcements",
+    "policyname": "Managers can update announcements",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "using_expression": "(current_org_role(organization_id) = 'manager'::text)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "announcements",
+    "policyname": "public_read_announcements",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "((EXISTS ( SELECT 1\n   FROM organizations o\n  WHERE ((o.id = announcements.organization_id) AND (o.is_active = true)))) AND (starts_at <= now()) AND (ends_at >= now()))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "bracket_matches",
+    "policyname": "Public read bracket_matches",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM ((tournament_categories tc\n     JOIN tournaments t ON ((t.id = tc.tournament_id)))\n     JOIN organizations o ON ((o.id = t.organization_id)))\n  WHERE ((tc.id = bracket_matches.tournament_category_id) AND (o.is_active = true) AND (t.status = ANY (ARRAY['published'::text, 'completed'::text])))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "categories",
+    "policyname": "Anyone can read categories for their org",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "((current_org_role(organization_id) IS NOT NULL) OR (EXISTS ( SELECT 1\n   FROM organizations\n  WHERE ((organizations.id = categories.organization_id) AND (organizations.is_active = true)))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "categories",
+    "policyname": "Managers can delete categories",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "DELETE",
+    "using_expression": "(current_org_role(organization_id) = 'manager'::text)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "categories",
+    "policyname": "Managers can manage categories",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "using_expression": null,
+    "with_check": "(current_org_role(organization_id) = 'manager'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "categories",
+    "policyname": "Managers can update categories",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "using_expression": "(current_org_role(organization_id) = 'manager'::text)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "categories",
+    "policyname": "public_read_categories",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM organizations o\n  WHERE ((o.id = categories.organization_id) AND (o.is_active = true))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "fixtures_config",
+    "policyname": "Public read fixtures_config",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM ((tournament_categories tc\n     JOIN tournaments t ON ((t.id = tc.tournament_id)))\n     JOIN organizations o ON ((o.id = t.organization_id)))\n  WHERE ((tc.id = fixtures_config.tournament_category_id) AND (o.is_active = true) AND (t.status = ANY (ARRAY['published'::text, 'completed'::text])))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "match_games",
+    "policyname": "Anyone can read match games",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "match_games",
+    "policyname": "Managers can manage match games",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "using_expression": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM matches m\n  WHERE ((m.id = match_games.match_id) AND (current_org_role(m.organization_id) = 'manager'::text))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "match_games",
+    "policyname": "Managers can update match games",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM matches m\n  WHERE ((m.id = match_games.match_id) AND (current_org_role(m.organization_id) = 'manager'::text))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "matches",
+    "policyname": "Anyone can read matches for active orgs",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM organizations\n  WHERE ((organizations.id = matches.organization_id) AND (organizations.is_active = true))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "matches",
+    "policyname": "Managers can manage matches",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "using_expression": null,
+    "with_check": "(current_org_role(organization_id) = 'manager'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "matches",
+    "policyname": "Managers can update matches",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "using_expression": "(current_org_role(organization_id) = 'manager'::text)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "matches",
+    "policyname": "Players can report their own match results",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "using_expression": "(((player_a_id = auth.uid()) OR (player_b_id = auth.uid())) AND (current_org_role(organization_id) = 'player'::text))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "matches",
+    "policyname": "public_read_public_matches",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM (tournaments t\n     JOIN organizations o ON ((o.id = t.organization_id)))\n  WHERE ((t.id = matches.tournament_id) AND (o.is_active = true) AND (t.status = ANY (ARRAY['published'::text, 'completed'::text])))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "org_integrations",
+    "policyname": "Managers can manage integrations",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "using_expression": null,
+    "with_check": "(current_org_role(organization_id) = 'manager'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "org_integrations",
+    "policyname": "Managers can read their org integrations",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(current_org_role(organization_id) = 'manager'::text)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "org_integrations",
+    "policyname": "Managers can update integrations",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "using_expression": "(current_org_role(organization_id) = 'manager'::text)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "org_members",
+    "policyname": "Managers can manage members of their org",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "using_expression": null,
+    "with_check": "(current_org_role(organization_id) = 'manager'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "org_members",
+    "policyname": "Managers can update members of their org",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "using_expression": "(current_org_role(organization_id) = 'manager'::text)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "org_members",
+    "policyname": "Org members can read members of their org",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(current_org_role(organization_id) IS NOT NULL)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "organizations",
+    "policyname": "Admins can create organizations",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "using_expression": null,
+    "with_check": "is_platform_admin()"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "organizations",
+    "policyname": "Admins can update any organization",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "using_expression": "is_platform_admin()",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "organizations",
+    "policyname": "Anyone can read active organizations",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "((is_active = true) OR is_platform_admin())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "organizations",
+    "policyname": "Managers can update their org",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "using_expression": "(current_org_role(id) = 'manager'::text)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "organizations",
+    "policyname": "public_read_active_organizations",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(is_active = true)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Admins can read all profiles",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "is_platform_admin()",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can read own profile",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can update own profile",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "using_expression": "(id = auth.uid())",
+    "with_check": "(id = auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "public_read_profiles",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "rankings",
+    "policyname": "Anyone can read rankings for active orgs",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM organizations\n  WHERE ((organizations.id = rankings.organization_id) AND (organizations.is_active = true))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "rankings",
+    "policyname": "System can insert rankings",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "using_expression": null,
+    "with_check": "true"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "rankings",
+    "policyname": "System can update rankings",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "using_expression": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "rankings",
+    "policyname": "public_read_rankings",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM organizations o\n  WHERE ((o.id = rankings.organization_id) AND (o.is_active = true))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "seeds",
+    "policyname": "Public read seeds",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM ((tournament_categories tc\n     JOIN tournaments t ON ((t.id = tc.tournament_id)))\n     JOIN organizations o ON ((o.id = t.organization_id)))\n  WHERE ((tc.id = seeds.tournament_category_id) AND (o.is_active = true) AND (t.status = ANY (ARRAY['published'::text, 'completed'::text])))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tournament_categories",
+    "policyname": "Anyone can read tournament categories",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tournament_categories",
+    "policyname": "Managers can manage tournament categories",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "using_expression": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM tournaments t\n  WHERE ((t.id = tournament_categories.tournament_id) AND (current_org_role(t.organization_id) = 'manager'::text))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tournament_categories",
+    "policyname": "public_read_tournament_categories",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM (tournaments t\n     JOIN organizations o ON ((o.id = t.organization_id)))\n  WHERE ((t.id = tournament_categories.tournament_id) AND (o.is_active = true) AND (t.status = ANY (ARRAY['published'::text, 'completed'::text])))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tournament_entries",
+    "policyname": "Anyone can read tournament entries for active orgs",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM (tournaments t\n     JOIN organizations o ON ((o.id = t.organization_id)))\n  WHERE ((t.id = tournament_entries.tournament_id) AND (o.is_active = true))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tournament_entries",
+    "policyname": "Managers can delete tournament entries",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "DELETE",
+    "using_expression": "(EXISTS ( SELECT 1\n   FROM tournaments t\n  WHERE ((t.id = tournament_entries.tournament_id) AND (current_org_role(t.organization_id) = 'manager'::text))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tournament_entries",
+    "policyname": "Managers can manage tournament entries",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "using_expression": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM tournaments t\n  WHERE ((t.id = tournament_entries.tournament_id) AND (current_org_role(t.organization_id) = 'manager'::text))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tournaments",
+    "policyname": "Anyone can read published tournaments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "((status = ANY (ARRAY['published'::text, 'completed'::text])) AND (EXISTS ( SELECT 1\n   FROM organizations\n  WHERE ((organizations.id = tournaments.organization_id) AND (organizations.is_active = true)))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tournaments",
+    "policyname": "Managers can manage tournaments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "using_expression": null,
+    "with_check": "(current_org_role(organization_id) = 'manager'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tournaments",
+    "policyname": "Managers can update tournaments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "using_expression": "(current_org_role(organization_id) = 'manager'::text)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tournaments",
+    "policyname": "Org members can read all tournaments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "(current_org_role(organization_id) IS NOT NULL)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tournaments",
+    "policyname": "public_read_visible_tournaments",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "using_expression": "((status = ANY (ARRAY['published'::text, 'completed'::text])) AND (EXISTS ( SELECT 1\n   FROM organizations o\n  WHERE ((o.id = tournaments.organization_id) AND (o.is_active = true)))))",
+    "with_check": null
+  }
+]

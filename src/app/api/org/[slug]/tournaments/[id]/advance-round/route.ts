@@ -89,7 +89,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     }
 
     // No winner_next_match_id — compute it from bracket structure
-    if (m.bracket_side === "grand_final" || m.bracket_side === "grand_final_reset") continue
+    if (m.bracket_side === "grand_final") continue
 
     const targetSide = m.bracket_side === "losers" ? "losers" : m.bracket_side === "single" ? "single" : "winners"
     const targetRound = m.round_number + 1

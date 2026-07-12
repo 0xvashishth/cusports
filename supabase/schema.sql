@@ -90,8 +90,8 @@ CREATE TABLE public.matches (
   tournament_id uuid,
   category_id uuid,
   round text,
-  player_a_id uuid NOT NULL,
-  player_b_id uuid NOT NULL,
+  player_a_id uuid,
+  player_b_id uuid,
   scheduled_at timestamp with time zone,
   status text DEFAULT 'scheduled'::text CHECK (status = ANY (ARRAY['scheduled'::text, 'ongoing'::text, 'completed'::text, 'walkover'::text, 'cancelled'::text])),
   winner_id uuid,
@@ -109,8 +109,10 @@ CREATE TABLE public.match_games (
   game_number integer NOT NULL,
   score_a integer NOT NULL,
   score_b integer NOT NULL,
+  bracket_match_id uuid,
   CONSTRAINT match_games_pkey PRIMARY KEY (id),
-  CONSTRAINT match_games_match_id_fkey FOREIGN KEY (match_id) REFERENCES public.matches(id)
+  CONSTRAINT match_games_match_id_fkey FOREIGN KEY (match_id) REFERENCES public.matches(id),
+  CONSTRAINT match_games_bracket_match_fkey FOREIGN KEY (bracket_match_id) REFERENCES public.bracket_matches(id)
 );
 CREATE TABLE public.announcements (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -157,4 +159,50 @@ CREATE TABLE public.tournament_entries (
   CONSTRAINT tournament_entries_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id),
   CONSTRAINT tournament_entries_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id),
   CONSTRAINT tournament_entries_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
+);
+CREATE TABLE public.fixtures_config (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  tournament_category_id uuid NOT NULL UNIQUE,
+  bracket_type text NOT NULL CHECK (bracket_type = ANY (ARRAY['single_elimination'::text, 'double_elimination'::text])),
+  seeding_method text NOT NULL DEFAULT 'ranked'::text CHECK (seeding_method = ANY (ARRAY['ranked'::text, 'random'::text, 'manual'::text])),
+  bye_handling text NOT NULL DEFAULT 'top_seeds_get_byes'::text CHECK (bye_handling = ANY (ARRAY['top_seeds_get_byes'::text, 'random_byes'::text])),
+  third_place_match boolean DEFAULT false,
+  grand_final_mode text NOT NULL DEFAULT 'true_double_elim_reset'::text CHECK (grand_final_mode = ANY (ARRAY['single_final'::text, 'true_double_elim_reset'::text])),
+  generated_at timestamp with time zone,
+  CONSTRAINT fixtures_config_pkey PRIMARY KEY (id),
+  CONSTRAINT fixtures_config_tournament_category_id_fkey FOREIGN KEY (tournament_category_id) REFERENCES public.tournament_categories(id)
+);
+CREATE TABLE public.seeds (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  tournament_category_id uuid NOT NULL,
+  entity_id uuid NOT NULL,
+  entity_type text NOT NULL CHECK (entity_type = ANY (ARRAY['player'::text, 'pair'::text])),
+  seed_number integer NOT NULL,
+  CONSTRAINT seeds_pkey PRIMARY KEY (id),
+  CONSTRAINT seeds_tournament_category_id_fkey FOREIGN KEY (tournament_category_id) REFERENCES public.tournament_categories(id)
+);
+CREATE TABLE public.bracket_matches (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  tournament_category_id uuid NOT NULL,
+  bracket_side text NOT NULL CHECK (bracket_side = ANY (ARRAY['winners'::text, 'losers'::text, 'grand_final'::text, 'grand_final_reset'::text, 'third_place'::text, 'single'::text])),
+  round_number integer NOT NULL,
+  match_index integer NOT NULL,
+  player_a_id uuid,
+  player_a_type text CHECK (player_a_type = ANY (ARRAY['player'::text, 'pair'::text])),
+  player_b_id uuid,
+  player_b_type text CHECK (player_b_type = ANY (ARRAY['player'::text, 'pair'::text])),
+  is_bye boolean DEFAULT false,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'scheduled'::text, 'ongoing'::text, 'completed'::text, 'walkover'::text, 'cancelled'::text])),
+  winner_id uuid,
+  loser_id uuid,
+  winner_next_match_id uuid,
+  winner_next_slot text CHECK (winner_next_slot = ANY (ARRAY['A'::text, 'B'::text])),
+  loser_next_match_id uuid,
+  loser_next_slot text CHECK (loser_next_slot = ANY (ARRAY['A'::text, 'B'::text])),
+  scheduled_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT bracket_matches_pkey PRIMARY KEY (id),
+  CONSTRAINT bracket_matches_tournament_category_id_fkey FOREIGN KEY (tournament_category_id) REFERENCES public.tournament_categories(id),
+  CONSTRAINT bracket_matches_winner_next_fkey FOREIGN KEY (winner_next_match_id) REFERENCES public.bracket_matches(id),
+  CONSTRAINT bracket_matches_loser_next_fkey FOREIGN KEY (loser_next_match_id) REFERENCES public.bracket_matches(id)
 );

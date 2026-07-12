@@ -11,8 +11,7 @@ export type FormatType = "knockout" | "round_robin" | "group_knockout"
 export type BracketType = "single_elimination" | "double_elimination"
 export type SeedingMethod = "ranked" | "random" | "manual"
 export type ByeHandling = "top_seeds_get_byes" | "random_byes"
-export type GrandFinalMode = "single_final" | "true_double_elim_reset"
-export type BracketSide = "winners" | "losers" | "grand_final" | "grand_final_reset" | "third_place" | "single"
+export type BracketSide = "winners" | "losers" | "grand_final" | "third_place" | "single"
 export type SlotPosition = "A" | "B"
 
 export interface Profile {
@@ -108,7 +107,6 @@ export interface FixturesConfig {
   seeding_method: SeedingMethod
   bye_handling: ByeHandling
   third_place_match: boolean
-  grand_final_mode: GrandFinalMode
   generated_at: string | null
 }
 

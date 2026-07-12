@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { BracketTree } from "@/components/bracket-tree";
+import { BracketTreeDouble } from "@/components/bracket-tree-double";
 import type {
   Tournament,
   TournamentCategory,
@@ -38,7 +39,6 @@ import type {
   BracketType,
   SeedingMethod,
   ByeHandling,
-  GrandFinalMode,
 } from "@/lib/types";
 import {
   Calendar,
@@ -108,7 +108,6 @@ export function TournamentDetailClient({
   const [seedingMethod, setSeedingMethod] = useState<SeedingMethod>("ranked");
   const [byeHandling, setByeHandling] = useState<ByeHandling>("top_seeds_get_byes");
   const [thirdPlaceMatch, setThirdPlaceMatch] = useState(false);
-  const [grandFinalMode, setGrandFinalMode] = useState<GrandFinalMode>("true_double_elim_reset");
 
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -235,7 +234,6 @@ export function TournamentDetailClient({
           seedingMethod,
           byeHandling,
           thirdPlaceMatch: bracketType === "single_elimination" ? thirdPlaceMatch : false,
-          grandFinalMode: bracketType === "double_elimination" ? grandFinalMode : "true_double_elim_reset",
           force,
         }),
       },
@@ -439,10 +437,18 @@ export function TournamentDetailClient({
             categories.map((tc) => {
               const catMatches = matchesByCategory.get(tc.category_id) || [];
               if (catMatches.length === 0) return null;
+              const isDE = catMatches.some(
+                (m) => m.bracket_side === "winners" || m.bracket_side === "losers",
+              );
               return (
                 <section key={tc.id}>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">{tc.category?.name || "Unknown"}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold">{tc.category?.name || "Unknown"}</h3>
+                      <Badge variant="outline" className="text-xs">
+                        {isDE ? "Double Elimination" : "Single Elimination"}
+                      </Badge>
+                    </div>
                     {isManager && catMatches.some(m => m.status === "pending" && m.player_a_id && m.player_b_id) && (
                       <Button
                         variant="outline"
@@ -460,13 +466,23 @@ export function TournamentDetailClient({
                       </Button>
                     )}
                   </div>
-                  <BracketTree
-                    bracketMatches={catMatches}
-                    slug={org.slug}
-                    isManager={isManager}
-                    onMatchUpdate={fetchData}
-                    playerNameMap={resolvedNameMap}
-                  />
+                  {isDE ? (
+                    <BracketTreeDouble
+                      bracketMatches={catMatches}
+                      slug={org.slug}
+                      isManager={isManager}
+                      onMatchUpdate={fetchData}
+                      playerNameMap={resolvedNameMap}
+                    />
+                  ) : (
+                    <BracketTree
+                      bracketMatches={catMatches}
+                      slug={org.slug}
+                      isManager={isManager}
+                      onMatchUpdate={fetchData}
+                      playerNameMap={resolvedNameMap}
+                    />
+                  )}
                 </section>
               );
             })
@@ -665,15 +681,9 @@ export function TournamentDetailClient({
 
                   {bracketType === "double_elimination" && (
                     <div className="space-y-2">
-                      <Label>Grand Final Mode</Label>
-                      <select
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        value={grandFinalMode}
-                        onChange={(e) => setGrandFinalMode(e.target.value as GrandFinalMode)}
-                      >
-                        <option value="single_final">Single Grand Final</option>
-                        <option value="true_double_elim_reset">True Double Elim (Reset Match)</option>
-                      </select>
+                      <p className="text-sm text-muted-foreground">
+                        Double elimination: losers bracket final feeds directly into the Grand Final. Tournament concludes when the Grand Final is played.
+                      </p>
                     </div>
                   )}
                 </div>
