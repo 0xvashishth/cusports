@@ -38,6 +38,7 @@ import {
   Play,
   CheckCircle2,
   Megaphone,
+  MapPin,
 } from "lucide-react";
 
 interface OrgPageClientProps {
@@ -586,6 +587,12 @@ function OrgPageContent({
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
+                        {t.venue && (
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                            <MapPin className="w-3.5 h-3.5" />
+                            {t.venue}
+                          </div>
+                        )}
                         <div className="flex items-center gap-2" />
                       </CardContent>
                     </Card>

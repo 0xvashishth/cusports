@@ -17,7 +17,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { Trophy, Plus, CalendarRange, MoreVertical, Pencil, Trash2, Eye } from "lucide-react"
+import { Trophy, Plus, CalendarRange, MoreVertical, Pencil, Trash2, Eye, MapPin } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { DEFAULT_CATEGORIES_DATA } from "@/lib/constants"
 import type { Tournament, Organization } from "@/lib/types"
@@ -39,6 +39,7 @@ export function TournamentsClient({ org, tournaments }: TournamentsClientProps) 
   const [editingTournament, setEditingTournament] = useState<Tournament | null>(null)
   const [form, setForm] = useState({
     name: "",
+    venue: "",
     startDate: "",
     endDate: "",
     selectedCategories: [] as string[],
@@ -51,7 +52,7 @@ export function TournamentsClient({ org, tournaments }: TournamentsClientProps) 
 
   function openCreate() {
     setEditingTournament(null)
-    setForm({ name: "", startDate: "", endDate: "", selectedCategories: [] })
+    setForm({ name: "", venue: "", startDate: "", endDate: "", selectedCategories: [] })
     setCategoryConfigs({})
     setError(null)
     setOpen(true)
@@ -86,6 +87,7 @@ export function TournamentsClient({ org, tournaments }: TournamentsClientProps) 
     setEditingTournament(t)
     setForm({
       name: t.name,
+      venue: t.venue || "",
       startDate: t.start_date,
       endDate: t.end_date,
       selectedCategories: selectedNames,
@@ -134,6 +136,7 @@ export function TournamentsClient({ org, tournaments }: TournamentsClientProps) 
         .from("tournaments")
         .update({
           name: form.name,
+          venue: form.venue || null,
           start_date: form.startDate,
           end_date: form.endDate,
         })
@@ -220,6 +223,7 @@ export function TournamentsClient({ org, tournaments }: TournamentsClientProps) 
         .insert({
           organization_id: org.id,
           name: form.name,
+          venue: form.venue || null,
           start_date: form.startDate,
           end_date: form.endDate,
           status: "draft",
@@ -281,7 +285,7 @@ export function TournamentsClient({ org, tournaments }: TournamentsClientProps) 
     setSaving(false)
     setOpen(false)
     setEditingTournament(null)
-    setForm({ name: "", startDate: "", endDate: "", selectedCategories: [] })
+    setForm({ name: "", venue: "", startDate: "", endDate: "", selectedCategories: [] })
     setError(null)
     router.refresh()
   }
@@ -337,6 +341,15 @@ export function TournamentsClient({ org, tournaments }: TournamentsClientProps) 
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Summer Open 2026"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="venue">Venues (comma separated)</Label>
+              <Input
+                id="venue"
+                value={form.venue}
+                onChange={(e) => setForm({ ...form, venue: e.target.value })}
+                placeholder="Hall A, Room 204, Main Gym"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -481,6 +494,12 @@ export function TournamentsClient({ org, tournaments }: TournamentsClientProps) 
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
+                {t.venue && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4" />
+                    {t.venue}
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CalendarRange className="h-4 w-4" />
                   {new Date(t.start_date).toLocaleDateString()} — {new Date(t.end_date).toLocaleDateString()}

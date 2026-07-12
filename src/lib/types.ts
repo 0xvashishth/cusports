@@ -74,6 +74,7 @@ export interface Tournament {
   organization_id: string
   name: string
   banner_url: string | null
+  venue: string | null
   start_date: string
   end_date: string
   status: TournamentStatus
