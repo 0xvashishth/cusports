@@ -79,7 +79,6 @@ export function AuthHeader({ showCta }: AuthHeaderProps) {
       </Link>
     ) : (
       <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground">role={role} slug={orgSlug}</span>
         <Button disabled>No org assigned</Button>
       </div>
     )

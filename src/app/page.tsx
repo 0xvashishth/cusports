@@ -87,7 +87,6 @@ export default function HomePage() {
               rankings for your table tennis organization.
             </p>
             <div className="flex items-center justify-center gap-4">
-              <AuthHeader showCta />
               <Link href="#features">
                 <Button variant="outline" size="lg" className="text-lg px-8">
                   Learn More
