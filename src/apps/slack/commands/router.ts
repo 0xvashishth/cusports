@@ -43,7 +43,7 @@ export function parseCommand(text: string): ParsedCommand {
   console.log("[Slack Router] Cleaned text:", cleaned)
 
   const reportMatchRaw = text.match(
-    /report\s+match\s+vs\s+<@([A-Z0-9]+)>\s+([\d\-,\s]+)/i,
+    /report\s+match\s+(?:vs\s+)?<@([A-Z0-9]+)>\s+([\d\-,\s]+)/i,
   )
   if (reportMatchRaw) {
     const opponentSlackUserId = reportMatchRaw[1]
@@ -57,7 +57,7 @@ export function parseCommand(text: string): ParsedCommand {
   }
 
   const reportMatchCleaned = cleaned.match(
-    /report\s+match\s+vs\s+@?(\S+)\s+([\d\-,\s]+)/i,
+    /report\s+match\s+(?:vs\s+)?@?(\S+)\s+([\d\-,\s]+)/i,
   )
   if (reportMatchCleaned) {
     const opponentName = reportMatchCleaned[1].replace(/[>_]/g, "")
@@ -71,7 +71,7 @@ export function parseCommand(text: string): ParsedCommand {
   }
 
   const walkoverRaw = text.match(
-    /report\s+walkover\s+vs\s+<@([A-Z0-9]+)>/i,
+    /report\s+walkover\s+(?:vs\s+)?<@([A-Z0-9]+)>/i,
   )
   if (walkoverRaw) {
     console.log("[Slack Router] Parsed walkover (raw mention):", { opponentSlackUserId: walkoverRaw[1] })
@@ -79,7 +79,7 @@ export function parseCommand(text: string): ParsedCommand {
   }
 
   const walkoverMatch = cleaned.match(
-    /report\s+walkover\s+vs\s+@?(\S+)/i,
+    /report\s+walkover\s+(?:vs\s+)?@?(\S+)/i,
   )
   if (walkoverMatch) {
     const opponentName = walkoverMatch[1].replace(/[>_]/g, "")
@@ -88,7 +88,7 @@ export function parseCommand(text: string): ParsedCommand {
   }
 
   const managerReportRaw = text.match(
-    /report\s+result\s+<@([A-Z0-9]+)>\s+vs\s+<@([A-Z0-9]+)>\s+([\d\-,\s]+)/i,
+    /report\s+result\s+<@([A-Z0-9]+)>\s+(?:vs\s+)?<@([A-Z0-9]+)>\s+([\d\-,\s]+)/i,
   )
   if (managerReportRaw) {
     const playerASlackUserId = managerReportRaw[1]
