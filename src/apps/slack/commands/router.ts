@@ -4,10 +4,11 @@ import { isManager } from "../validation/matches"
 import { handlePlayerReport } from "./report-match"
 import { handleManagerReport } from "./manager-report"
 import { handleFixtures } from "./fixtures"
+import { handleRankings } from "./rankings"
 import type { SlackCommandResult } from "../types"
 
 interface ParsedCommand {
-  type: "report" | "manager_report" | "walkover" | "fixtures" | "help" | "unknown"
+  type: "report" | "manager_report" | "walkover" | "fixtures" | "rankings" | "help" | "unknown"
   opponentName?: string
   opponentSlackUserId?: string
   games?: { score_a: number; score_b: number }[]
@@ -121,6 +122,12 @@ export function parseCommand(text: string): ParsedCommand {
   if (fixturesMatch) {
     console.log("[Slack Router] Parsed fixtures command")
     return { type: "fixtures" }
+  }
+
+  const rankingsMatch = cleaned.match(/^rankings$/i)
+  if (rankingsMatch) {
+    console.log("[Slack Router] Parsed rankings command")
+    return { type: "rankings" }
   }
 
   const helpMatch = cleaned.match(/^help$/i)
@@ -240,6 +247,9 @@ export async function routeCommand(
     case "fixtures":
       return handleFixtures(orgId)
 
+    case "rankings":
+      return handleRankings(orgId)
+
     case "help":
       return {
         success: true,
@@ -247,6 +257,7 @@ export async function routeCommand(
           `*${orgName} Bot Commands*`,
           "",
           "`fixtures` - Show all upcoming matches with confirmed players",
+          "`rankings` - Show player rankings for all categories",
           "`report match vs @Opponent 11-7, 9-11, 11-5` - Report your match result",
           "`report result @Player1 vs @Player2 11-7, 9-11` - Manager: report any match",
           "`help` - Show this message",

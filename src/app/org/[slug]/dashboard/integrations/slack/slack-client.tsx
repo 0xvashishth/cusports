@@ -282,9 +282,12 @@ export function SlackIntegrationClient({ org, integration }: SlackIntegrationCli
                 <div>
                   <p>Under <strong>OAuth & Permissions</strong>, add these Bot Token Scopes:</p>
                   <ul className="list-disc pl-5 mt-2 space-y-1">
-                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">chat:write</code> — Post announcements</li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">chat:write</code> — Post messages and announcements</li>
                     <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">channels:read</code> — Read channel info</li>
-                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">app_mentions:read</code> — Listen for mentions</li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">app_mentions:read</code> — Listen for @bot mentions</li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">users:read</code> — Look up Slack users</li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">users:read.email</code> — Access user emails to match players</li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">reactions:write</code> — Add emoji reactions (e.g. green checkmark on match reports)</li>
                   </ul>
                   <p className="mt-2">
                     Click <strong>Install to Workspace</strong> and copy the Bot User OAuth Token.
@@ -352,14 +355,18 @@ export function SlackIntegrationClient({ org, integration }: SlackIntegrationCli
           <div className="bg-muted/50 border rounded-lg p-4 space-y-3">
             <div>
               <h4 className="font-semibold text-foreground mb-1">Report a Match Result</h4>
-              <p className="text-muted-foreground mb-2">Mention the bot with scores:</p>
+              <p className="text-muted-foreground mb-2">Mention the bot with scores (with or without &ldquo;vs&rdquo;):</p>
               <pre className="bg-background border p-3 rounded text-xs overflow-x-auto">
                 @{org.name} TT Bot report match vs @OpponentName 11-7, 9-11, 11-5
+              </pre>
+              <pre className="bg-background border p-3 rounded text-xs overflow-x-auto mt-1">
+                @{org.name} TT Bot report match @OpponentName 11-7, 9-11, 11-5
               </pre>
             </div>
             <Separator />
             <div>
               <h4 className="font-semibold text-foreground mb-1">Check Rankings</h4>
+              <p className="text-muted-foreground mb-2">View player rankings for all categories:</p>
               <pre className="bg-background border p-3 rounded text-xs overflow-x-auto">
                 @{org.name} TT Bot rankings
               </pre>
@@ -367,14 +374,30 @@ export function SlackIntegrationClient({ org, integration }: SlackIntegrationCli
             <Separator />
             <div>
               <h4 className="font-semibold text-foreground mb-1">Upcoming Fixtures</h4>
+              <p className="text-muted-foreground mb-2">View all scheduled matches with confirmed players:</p>
               <pre className="bg-background border p-3 rounded text-xs overflow-x-auto">
                 @{org.name} TT Bot fixtures
               </pre>
             </div>
+            <Separator />
+            <div>
+              <h4 className="font-semibold text-foreground mb-1">Manager: Report Any Match</h4>
+              <p className="text-muted-foreground mb-2">Managers can report results for any two players:</p>
+              <pre className="bg-background border p-3 rounded text-xs overflow-x-auto">
+                @{org.name} TT Bot report result @Player1 vs @Player2 11-7, 9-11
+              </pre>
+            </div>
+            <Separator />
+            <div>
+              <h4 className="font-semibold text-foreground mb-1">Help</h4>
+              <pre className="bg-background border p-3 rounded text-xs overflow-x-auto">
+                @{org.name} TT Bot help
+              </pre>
+            </div>
           </div>
           <div className="text-muted-foreground space-y-1">
-            <p>Reported results go through pending approval by default.</p>
-            <p>The opponent must be registered in the system.</p>
+            <p>Reported results are recorded immediately and update rankings automatically.</p>
+            <p>Both players must be registered in the system with matching Slack email addresses.</p>
           </div>
         </CardContent>
       </Card>
