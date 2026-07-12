@@ -2,7 +2,6 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { DEFAULT_CATEGORIES_DATA } from "@/lib/constants"
-import { notifyTournamentCreated } from "@/apps/slack/notifications/tournament"
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -104,11 +103,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       return NextResponse.json({ error: `Failed to link category "${catName}": ${tcError.message}` }, { status: 500 })
     }
   }
-
-  console.log("[Tournament Create] Tournament created:", tournament.id, "- sending Slack notification")
-  notifyTournamentCreated(org.id, slug, tournament, createdCategories).catch((err) => {
-    console.error("[Tournament Create] Failed to send Slack notification:", err)
-  })
 
   return NextResponse.json({ success: true, tournament })
 }

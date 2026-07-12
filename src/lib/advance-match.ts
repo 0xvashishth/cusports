@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { DEFAULT_ELO_CONFIG } from "@/lib/elo"
 import type { EloConfig } from "@/lib/elo"
 import { applyMatchResult, recalculateCategory } from "@/lib/rankings"
+import { notifyTournamentCompleted, type CategoryWinner } from "@/apps/slack/notifications/tournament"
 
 interface AdvanceMatchInput {
   bracketMatchId: string
@@ -326,10 +327,78 @@ async function checkAndCompleteTournament(ac: ReturnType<typeof createAdminClien
     .in("tournament_category_id", tcIds)
 
   if (completed && total && completed.length === total.length) {
+    console.log("[Advance Match] All matches completed, marking tournament as completed:", tournamentId)
     await ac
       .from("tournaments")
       .update({ status: "completed" })
       .eq("id", tournamentId)
+
+    // Fetch tournament details and org slug for Slack notification
+    const { data: tournament } = await ac
+      .from("tournaments")
+      .select("*, organization:organizations(slug)")
+      .eq("id", tournamentId)
+      .single()
+
+    if (tournament) {
+      const org = tournament.organization as unknown as { slug: string } | null
+      if (org?.slug) {
+        // Fetch winners for each category
+        const { data: fullTcs } = await ac
+          .from("tournament_categories")
+          .select("id, category:categories(name)")
+          .eq("tournament_id", tournamentId)
+
+        const winners: CategoryWinner[] = []
+        for (const tc of fullTcs || []) {
+          const tcData = tc as Record<string, unknown>
+          const categoryName = ((tcData.category as Record<string, unknown>)?.name as string) || "Unknown"
+          const tcId = tcData.id as string
+
+          const { data: finalMatch } = await ac
+            .from("bracket_matches")
+            .select("winner_id, player_a_id, player_b_id")
+            .eq("tournament_category_id", tcId)
+            .in("status", ["completed", "walkover"])
+            .order("round", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (!finalMatch?.winner_id) {
+            winners.push({ categoryName, winnerName: "TBD", runnerUpName: null })
+            continue
+          }
+
+          const { data: winnerProfile } = await ac
+            .from("profiles")
+            .select("full_name")
+            .eq("id", finalMatch.winner_id)
+            .single()
+
+          const winnerName = winnerProfile?.full_name || "Unknown"
+          const loserId = finalMatch.winner_id === finalMatch.player_a_id
+            ? finalMatch.player_b_id
+            : finalMatch.player_a_id
+
+          let runnerUpName: string | null = null
+          if (loserId) {
+            const { data: runnerUpProfile } = await ac
+              .from("profiles")
+              .select("full_name")
+              .eq("id", loserId)
+              .single()
+            runnerUpName = runnerUpProfile?.full_name || null
+          }
+
+          winners.push({ categoryName, winnerName, runnerUpName })
+        }
+
+        console.log("[Advance Match] Sending completion notification for:", tournament.name)
+        notifyTournamentCompleted(tournament.organization_id, org.slug, tournament, winners).catch((err) => {
+          console.error("[Advance Match] Failed to send completion notification:", err)
+        })
+      }
+    }
   }
 }
 
