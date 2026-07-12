@@ -360,6 +360,9 @@ function BracketSection({
   const [connectors, setConnectors] = useState<
     Array<{ from: string; to: string; type: "winner" | "loser" }>
   >([])
+  const [connectorPaths, setConnectorPaths] = useState<
+    Array<{ key: string; d: string; type: "winner" | "loser" }>
+  >([])
 
   const setMatchRef = useCallback(
     (id: string, el: HTMLDivElement | null) => {
@@ -400,6 +403,32 @@ function BracketSection({
     return () => clearTimeout(timer)
   }, [section])
 
+  useEffect(() => {
+    if (connectors.length === 0) return
+    const inner = innerRef.current
+    if (!inner) return
+    const innerRect = inner.getBoundingClientRect()
+    const paths: Array<{ key: string; d: string; type: "winner" | "loser" }> = []
+    for (const conn of connectors) {
+      const fromEl = matchRefs.current.get(conn.from)
+      const toEl = matchRefs.current.get(conn.to)
+      if (!fromEl || !toEl) continue
+      const fromRect = fromEl.getBoundingClientRect()
+      const toRect = toEl.getBoundingClientRect()
+      const x1 = fromRect.right - innerRect.left
+      const y1 = fromRect.top + fromRect.height / 2 - innerRect.top
+      const x2 = toRect.left - innerRect.left
+      const y2 = toRect.top + toRect.height / 2 - innerRect.top
+      const midX = (x1 + x2) / 2
+      paths.push({
+        key: `${conn.from}-${conn.to}`,
+        d: `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`,
+        type: conn.type,
+      })
+    }
+    setConnectorPaths(paths)
+  }, [connectors])
+
   return (
     <section>
       <div className="flex items-center gap-2 mb-4">
@@ -419,40 +448,20 @@ function BracketSection({
             className="absolute top-0 left-0 w-full h-full pointer-events-none"
             style={{ zIndex: 0 }}
           >
-          {connectors.map((conn) => {
-            const fromEl = matchRefs.current.get(conn.from)
-            const toEl = matchRefs.current.get(conn.to)
-            if (!fromEl || !toEl) return null
-
-            const inner = innerRef.current
-            if (!inner) return null
-
-            const innerRect = inner.getBoundingClientRect()
-            const fromRect = fromEl.getBoundingClientRect()
-            const toRect = toEl.getBoundingClientRect()
-
-            const x1 = fromRect.right - innerRect.left
-            const y1 = fromRect.top + fromRect.height / 2 - innerRect.top
-            const x2 = toRect.left - innerRect.left
-            const y2 = toRect.top + toRect.height / 2 - innerRect.top
-
-            const midX = (x1 + x2) / 2
-
-            return (
+          {connectorPaths.map((path) => (
               <path
-                key={`${conn.from}-${conn.to}`}
-                d={`M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`}
+                key={path.key}
+                d={path.d}
                 fill="none"
                 stroke={
-                  conn.type === "loser"
+                  path.type === "loser"
                     ? "hsl(var(--muted-foreground) / 0.3)"
                     : "hsl(var(--primary) / 0.4)"
                 }
                 strokeWidth={1.5}
-                strokeDasharray={conn.type === "loser" ? "4,4" : "none"}
+                strokeDasharray={path.type === "loser" ? "4,4" : "none"}
               />
-            )
-          })}
+          ))}
         </svg>
 
           {section.rounds.map((round) => (
