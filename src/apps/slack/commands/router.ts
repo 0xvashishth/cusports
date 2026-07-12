@@ -3,10 +3,11 @@ import { findPlayerBySlackUserId } from "../validation/players"
 import { isManager } from "../validation/matches"
 import { handlePlayerReport } from "./report-match"
 import { handleManagerReport } from "./manager-report"
+import { handleFixtures } from "./fixtures"
 import type { SlackCommandResult } from "../types"
 
 interface ParsedCommand {
-  type: "report" | "manager_report" | "walkover" | "help" | "unknown"
+  type: "report" | "manager_report" | "walkover" | "fixtures" | "help" | "unknown"
   opponentName?: string
   games?: { score_a: number; score_b: number }[]
   playerA?: string
@@ -73,6 +74,12 @@ export function parseCommand(text: string): ParsedCommand {
     }
     console.log("[Slack Router] Parsed manager report:", { playerA, playerB, games })
     return { type: "manager_report", playerA, playerB, games }
+  }
+
+  const fixturesMatch = cleaned.match(/^fixtures$/i)
+  if (fixturesMatch) {
+    console.log("[Slack Router] Parsed fixtures command")
+    return { type: "fixtures" }
   }
 
   const helpMatch = cleaned.match(/^help$/i)
@@ -149,12 +156,16 @@ export async function routeCommand(
       return { success: false, message: "Walkover reporting via Slack is not yet implemented. Please use the dashboard." }
     }
 
+    case "fixtures":
+      return handleFixtures(orgId)
+
     case "help":
       return {
         success: true,
         message: [
           `*${orgName} Bot Commands*`,
           "",
+          "`fixtures` - Show all upcoming matches with confirmed players",
           "`report match vs @Opponent 11-7, 9-11, 11-5` - Report your match result",
           "`report result @Player1 vs @Player2 11-7, 9-11` - Manager: report any match",
           "`help` - Show this message",

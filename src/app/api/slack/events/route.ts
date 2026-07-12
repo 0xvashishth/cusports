@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { lookupOrgBySlackTeam, isChannelAllowed, getSlackBotToken } from "@/apps/slack/client"
 import { findPlayerBySlackUserId } from "@/apps/slack/validation/players"
-import { routeCommand } from "@/apps/slack/commands/router"
+import { routeCommand, parseCommand } from "@/apps/slack/commands/router"
 
 export async function POST(request: Request) {
   const body = await request.json()
@@ -40,11 +40,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true })
     }
 
-    const reporter = await findPlayerBySlackUserId(orgInfo.orgId, user, botToken)
-    console.log("[Slack Events] Reporter lookup:", reporter)
-    if (!reporter) {
-      console.log("[Slack Events] No player linked to Slack user:", user)
-      return NextResponse.json({ ok: true })
+    const parsed = parseCommand(text)
+    const needsReporter = parsed.type === "report" || parsed.type === "manager_report" || parsed.type === "walkover"
+
+    let reporter = null
+    if (needsReporter) {
+      reporter = await findPlayerBySlackUserId(orgInfo.orgId, user, botToken)
+      console.log("[Slack Events] Reporter lookup:", reporter)
+      if (!reporter) {
+        console.log("[Slack Events] No player linked to Slack user:", user)
+        return NextResponse.json({ ok: true })
+      }
     }
 
     console.log("[Slack Events] Routing command:", { orgId: orgInfo.orgId, orgSlug: orgInfo.orgSlug, user, channel, text })

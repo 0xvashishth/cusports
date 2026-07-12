@@ -360,12 +360,11 @@ async function checkAndCompleteTournament(ac: ReturnType<typeof createAdminClien
             .select("winner_id, player_a_id, player_b_id")
             .eq("tournament_category_id", tcId)
             .in("status", ["completed", "walkover"])
-            .order("round", { ascending: false })
-            .limit(1)
+            .is("winner_next_match_id", null)
             .maybeSingle()
 
           if (!finalMatch?.winner_id) {
-            winners.push({ categoryName, winnerName: "TBD", runnerUpName: null })
+            winners.push({ categoryName, winnerName: "TBD", runnerUpName: null, thirdPlaceName: null })
             continue
           }
 
@@ -390,7 +389,25 @@ async function checkAndCompleteTournament(ac: ReturnType<typeof createAdminClien
             runnerUpName = runnerUpProfile?.full_name || null
           }
 
-          winners.push({ categoryName, winnerName, runnerUpName })
+          let thirdPlaceName: string | null = null
+          const { data: thirdPlaceMatch } = await ac
+            .from("bracket_matches")
+            .select("winner_id")
+            .eq("tournament_category_id", tcId)
+            .eq("bracket_side", "third_place")
+            .in("status", ["completed", "walkover"])
+            .maybeSingle()
+
+          if (thirdPlaceMatch?.winner_id) {
+            const { data: thirdProfile } = await ac
+              .from("profiles")
+              .select("full_name")
+              .eq("id", thirdPlaceMatch.winner_id)
+              .single()
+            thirdPlaceName = thirdProfile?.full_name || null
+          }
+
+          winners.push({ categoryName, winnerName, runnerUpName, thirdPlaceName })
         }
 
         console.log("[Advance Match] Sending completion notification for:", tournament.name)
