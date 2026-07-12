@@ -168,6 +168,7 @@ export interface OrgIntegration {
   slack_team_id: string | null
   slack_channel_id: string | null
   slack_bot_token_encrypted: string | null
+  allowed_channel_ids: string[] | null
 }
 
 export interface ActivityLog {

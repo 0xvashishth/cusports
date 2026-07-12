@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { BotMessageSquare, Plug, PlugZap, Unplug, ListChecks, BookOpen } from "lucide-react"
+import { BotMessageSquare, Plug, PlugZap, Unplug, ListChecks, BookOpen, X } from "lucide-react"
 import type { Organization, OrgIntegration } from "@/lib/types"
 
 interface SlackIntegrationClientProps {
@@ -25,17 +25,20 @@ export function SlackIntegrationClient({ org, integration }: SlackIntegrationCli
     slackTeamId: integration?.slack_team_id || "",
     slackChannelId: integration?.slack_channel_id || "",
     slackBotToken: "",
+    allowedChannelIds: integration?.allowed_channel_ids || [],
   })
+  const [newChannelId, setNewChannelId] = useState("")
 
   async function saveIntegration() {
     setSaving(true)
     setMessage(null)
     const supabase = createClient()
 
-    const payload: Record<string, string> = {
+    const payload: Record<string, unknown> = {
       organization_id: org.id,
       slack_team_id: form.slackTeamId,
       slack_channel_id: form.slackChannelId,
+      allowed_channel_ids: form.allowedChannelIds.length > 0 ? form.allowedChannelIds : null,
     }
 
     if (form.slackBotToken) {
@@ -78,7 +81,7 @@ export function SlackIntegrationClient({ org, integration }: SlackIntegrationCli
       setMessage({ type: "error", text: "Error disconnecting: " + error.message })
     } else {
       setMessage({ type: "success", text: "Slack integration disconnected" })
-      setForm({ slackTeamId: "", slackChannelId: "", slackBotToken: "" })
+      setForm({ slackTeamId: "", slackChannelId: "", slackBotToken: "", allowedChannelIds: [] })
     }
     setSaving(false)
     router.refresh()
@@ -175,6 +178,70 @@ export function SlackIntegrationClient({ org, integration }: SlackIntegrationCli
               }`}
             >
               {message.text}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <ListChecks className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="text-lg">Channel Allowlist</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Restrict score reports and announcements to specific channels. If empty, all channels are allowed.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              value={newChannelId}
+              onChange={(e) => setNewChannelId(e.target.value)}
+              placeholder="C00000000"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newChannelId.trim()) {
+                  e.preventDefault()
+                  if (!form.allowedChannelIds.includes(newChannelId.trim())) {
+                    setForm({ ...form, allowedChannelIds: [...form.allowedChannelIds, newChannelId.trim()] })
+                  }
+                  setNewChannelId("")
+                }
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (newChannelId.trim() && !form.allowedChannelIds.includes(newChannelId.trim())) {
+                  setForm({ ...form, allowedChannelIds: [...form.allowedChannelIds, newChannelId.trim()] })
+                  setNewChannelId("")
+                }
+              }}
+              disabled={!newChannelId.trim()}
+            >
+              Add
+            </Button>
+          </div>
+          {form.allowedChannelIds.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {form.allowedChannelIds.map((channelId) => (
+                <Badge key={channelId} variant="secondary" className="gap-1 pr-1">
+                  {channelId}
+                  <button
+                    type="button"
+                    className="ml-1 rounded-full p-0.5 hover:bg-muted"
+                    onClick={() => {
+                      setForm({
+                        ...form,
+                        allowedChannelIds: form.allowedChannelIds.filter((id) => id !== channelId),
+                      })
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
             </div>
           )}
         </CardContent>

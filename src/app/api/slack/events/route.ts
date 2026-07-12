@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server"
+import { lookupOrgBySlackTeam, isChannelAllowed, getSlackBotToken } from "@/apps/slack/client"
+import { findPlayerBySlackUserId } from "@/apps/slack/validation/players"
+import { routeCommand } from "@/apps/slack/commands/router"
 
 export async function POST(request: Request) {
   const body = await request.json()
@@ -9,27 +12,41 @@ export async function POST(request: Request) {
 
   if (body.event?.type === "app_mention") {
     const { text, channel, user } = body.event
-    const match = text.match(/report match vs @?(\S+)\s+([\d-,\s]+)/)
+    const teamId = body.team_id
 
-    if (match) {
-      const opponentName = match[1]
-      const gamesStr = match[2]
-      const games = gamesStr.split(",").map((g: string) => {
-        const [a, b] = g.trim().split("-").map(Number)
-        return { score_a: a, score_b: b }
-      })
+    const orgInfo = await lookupOrgBySlackTeam(teamId)
+    if (!orgInfo) {
+      return NextResponse.json({ ok: true })
+    }
 
-      await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/slack/report-result`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slack_user_id: user,
-          opponent_name: opponentName,
-          games,
-          channel,
-          team_id: body.team_id,
-        }),
-      })
+    const channelAllowed = await isChannelAllowed(orgInfo.orgId, channel)
+    if (!channelAllowed) {
+      return NextResponse.json({ ok: true })
+    }
+
+    const botToken = await getSlackBotToken(orgInfo.orgId)
+    if (!botToken) {
+      return NextResponse.json({ ok: true })
+    }
+
+    const reporter = await findPlayerBySlackUserId(orgInfo.orgId, user, botToken)
+    if (!reporter) {
+      return NextResponse.json({ ok: true })
+    }
+
+    const result = await routeCommand(
+      orgInfo.orgId,
+      orgInfo.orgSlug,
+      orgInfo.orgName,
+      user,
+      channel,
+      teamId,
+      text,
+    )
+
+    if (result.message) {
+      const { postToSlackChannelById } = await import("@/apps/slack/client")
+      await postToSlackChannelById(orgInfo.orgId, channel, result.message)
     }
   }
 

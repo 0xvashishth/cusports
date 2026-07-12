@@ -218,67 +218,25 @@ export function TournamentsClient({ org, tournaments }: TournamentsClientProps) 
         })
       }
     } else {
-      const { data: tournament, error: insertError } = await supabase
-        .from("tournaments")
-        .insert({
-          organization_id: org.id,
+      const res = await fetch(`/api/org/${org.slug}/tournaments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           name: form.name,
-          venue: form.venue || null,
-          start_date: form.startDate,
-          end_date: form.endDate,
-          status: "draft",
-        })
-        .select()
-        .single()
+          venue: form.venue,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          selectedCategories: form.selectedCategories,
+          categoryConfigs,
+        }),
+      })
 
-      if (insertError || !tournament) {
-        setError(insertError?.message || "Failed to create tournament")
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        setError(data.error || "Failed to create tournament")
         setSaving(false)
         return
-      }
-
-      for (const catName of form.selectedCategories) {
-        const catDef = DEFAULT_CATEGORIES_DATA.find((c) => c.name === catName)
-        if (!catDef) continue
-        const config = categoryConfigs[catName] || { points_per_game: 11, games_per_match: 5, win_by_two: true }
-
-        const { data: existing } = await supabase
-          .from("categories")
-          .select("id")
-          .eq("organization_id", org.id)
-          .eq("name", catName)
-          .maybeSingle()
-
-        let categoryId: string
-        if (existing) {
-          categoryId = existing.id
-        } else {
-          const { data: newCat, error: catError } = await supabase
-            .from("categories")
-            .insert({ organization_id: org.id, name: catDef.name, is_doubles: catDef.is_doubles })
-            .select()
-            .single()
-          if (catError || !newCat) {
-            setError(catError?.message || `Failed to create category "${catName}"`)
-            setSaving(false)
-            return
-          }
-          categoryId = newCat.id
-        }
-
-        const { error: tcError } = await supabase.from("tournament_categories").insert({
-          tournament_id: tournament.id,
-          category_id: categoryId,
-          points_per_game: config.points_per_game,
-          games_per_match: config.games_per_match,
-          win_by_two: config.win_by_two,
-          format_type: "knockout",
-        })
-        if (tcError) {
-          setError(`Failed to link category "${catName}": ${tcError.message}`)
-          setSaving(false)
-          return
-        }
       }
     }
 
