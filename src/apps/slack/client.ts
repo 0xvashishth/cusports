@@ -134,6 +134,37 @@ export async function isChannelAllowed(
   return allowed
 }
 
+export async function addReaction(
+  orgId: string,
+  channelId: string,
+  timestamp: string,
+  emoji: string,
+): Promise<boolean> {
+  console.log("[Slack Client] addReaction called:", { orgId, channelId, timestamp, emoji })
+  const token = await getSlackBotToken(orgId)
+  if (!token) {
+    console.log("[Slack Client] No bot token, cannot add reaction")
+    return false
+  }
+
+  const res = await fetch("https://slack.com/api/reactions.add", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      channel: channelId,
+      timestamp: timestamp,
+      name: emoji,
+    }),
+  })
+
+  const data = await res.json()
+  console.log("[Slack Client] reactions.add response:", JSON.stringify(data, null, 2))
+  return data.ok === true
+}
+
 export async function lookupOrgBySlackTeam(
   teamId: string,
 ): Promise<{ orgId: string; orgSlug: string; orgName: string; integrationId: string } | null> {

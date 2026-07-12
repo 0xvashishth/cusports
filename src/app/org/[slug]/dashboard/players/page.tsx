@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { PlayersClient } from "./players-client"
+import type { Category } from "@/lib/types"
 
 export default async function PlayersPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -120,7 +121,7 @@ export default async function PlayersPage({ params }: { params: Promise<{ slug: 
         org={org}
         members={members || []}
         rankings={rankingsWithStats}
-        categories={categories || []}
+        categories={(categories || []) as Category[]}
       />
     </DashboardLayout>
   )

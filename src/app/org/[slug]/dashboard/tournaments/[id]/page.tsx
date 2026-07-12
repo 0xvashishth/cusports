@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import type { Profile, BracketMatch, FixturesConfig } from "@/lib/types";
+import type { Profile, BracketMatch } from "@/lib/types";
 import { TournamentDetailClient } from "../../../tournaments/[id]/tournament-detail-client";
 
 export default async function DashboardTournamentDetailPage({
@@ -68,14 +68,6 @@ export default async function DashboardTournamentDetailPage({
     }
   }
 
-  // Load fixtures configs
-  const { data: fixturesConfigs } = tcIds.length > 0
-    ? await adminClient
-        .from("fixtures_config")
-        .select("*")
-        .in("tournament_category_id", tcIds)
-    : { data: [] };
-
   // Load player profiles for name resolution
   const playerIds = [
     ...new Set(
@@ -119,7 +111,6 @@ export default async function DashboardTournamentDetailPage({
         tournament={tournament}
         categories={categories || []}
         initialBracketMatches={bracketMatches}
-        initialFixturesConfigs={(fixturesConfigs || []) as FixturesConfig[]}
         initialEntries={entries || []}
         orgPlayers={orgPlayers}
         playerNameMap={playerNameMap}

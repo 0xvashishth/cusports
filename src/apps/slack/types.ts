@@ -9,7 +9,9 @@ export interface SlackMatchReport {
 
 export interface SlackCommandResult {
   success: boolean
-  message: string
+  message?: string
+  reaction?: string
+  replyMessage?: string
   blocks?: object[]
 }
 

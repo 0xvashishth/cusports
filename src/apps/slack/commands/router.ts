@@ -147,7 +147,7 @@ export async function routeCommand(
   const botToken = await getSlackBotToken(orgId)
   if (!botToken) {
     console.log("[Slack Router] No bot token for org:", orgId)
-    return { success: false, message: "Bot token not configured for this organization." }
+    return { success: false, replyMessage: "Bot token not configured for this organization." }
   }
 
   const parsed = parseCommand(rawText)
@@ -158,7 +158,7 @@ export async function routeCommand(
       const reporter = await findPlayerBySlackUserId(orgId, slackUserId, botToken)
       console.log("[Slack Router] Report command - reporter:", reporter)
       if (!reporter) {
-        return { success: false, message: "Your Slack email is not linked to any player account in this organization. Please make sure your Slack profile has your email set and it matches your player account." }
+        return { success: false, replyMessage: "Your Slack email is not linked to any player account in this organization. Please make sure your Slack profile has your email set and it matches your player account." }
       }
 
       let opponent: { id: string; fullName: string } | null = null
@@ -166,19 +166,19 @@ export async function routeCommand(
         opponent = await findPlayerBySlackUserId(orgId, parsed.opponentSlackUserId, botToken)
         console.log("[Slack Router] Opponent lookup by Slack user ID:", opponent)
         if (!opponent) {
-          return { success: false, message: "The mentioned opponent's Slack email is not linked to any player account in this organization." }
+          return { success: false, replyMessage: "The mentioned opponent's Slack email is not linked to any player account in this organization." }
         }
       } else if (parsed.opponentName) {
         const { findPlayerByName } = await import("../validation/players")
         opponent = await findPlayerByName(orgId, parsed.opponentName)
         console.log("[Slack Router] Opponent lookup by name:", opponent)
         if (!opponent) {
-          return { success: false, message: `Player "${parsed.opponentName}" not found. Make sure the full name matches exactly.` }
+          return { success: false, replyMessage: `Player "${parsed.opponentName}" not found. Make sure the full name matches exactly.` }
         }
       }
 
       if (!opponent) {
-        return { success: false, message: "Could not identify the opponent. Please mention them with @username." }
+        return { success: false, replyMessage: "Could not identify the opponent. Please mention them with @username." }
       }
 
       return handlePlayerReport(
@@ -192,30 +192,30 @@ export async function routeCommand(
       const reporter = await findPlayerBySlackUserId(orgId, slackUserId, botToken)
       console.log("[Slack Router] Manager report command - reporter:", reporter)
       if (!reporter) {
-        return { success: false, message: "Your Slack email is not linked to any player account." }
+        return { success: false, replyMessage: "Your Slack email is not linked to any player account." }
       }
       const managerCheck = await isManager(orgId, reporter.id)
       console.log("[Slack Router] Manager check:", managerCheck)
       if (!managerCheck) {
-        return { success: false, message: "Only managers can use the 'report result @A vs @B' command." }
+        return { success: false, replyMessage: "Only managers can use the 'report result @A vs @B' command." }
       }
 
       let playerAName = parsed.playerA
       if (parsed.playerASlackUserId) {
         const playerA = await findPlayerBySlackUserId(orgId, parsed.playerASlackUserId, botToken)
-        if (!playerA) return { success: false, message: "The first mentioned player's Slack email is not linked to any player account." }
+        if (!playerA) return { success: false, replyMessage: "The first mentioned player's Slack email is not linked to any player account." }
         playerAName = playerA.fullName
       }
 
       let playerBName = parsed.playerB
       if (parsed.playerBSlackUserId) {
         const playerB = await findPlayerBySlackUserId(orgId, parsed.playerBSlackUserId, botToken)
-        if (!playerB) return { success: false, message: "The second mentioned player's Slack email is not linked to any player account." }
+        if (!playerB) return { success: false, replyMessage: "The second mentioned player's Slack email is not linked to any player account." }
         playerBName = playerB.fullName
       }
 
       if (!playerAName || !playerBName) {
-        return { success: false, message: "Could not identify both players. Please mention them with @username." }
+        return { success: false, replyMessage: "Could not identify both players. Please mention them with @username." }
       }
 
       return handleManagerReport(
@@ -228,13 +228,13 @@ export async function routeCommand(
     case "walkover": {
       const reporter = await findPlayerBySlackUserId(orgId, slackUserId, botToken)
       if (!reporter) {
-        return { success: false, message: "Your Slack email is not linked to any player account." }
+        return { success: false, replyMessage: "Your Slack email is not linked to any player account." }
       }
       const managerCheck = await isManager(orgId, reporter.id)
       if (!managerCheck) {
-        return { success: false, message: "Only managers can record walkovers." }
+        return { success: false, replyMessage: "Only managers can record walkovers." }
       }
-      return { success: false, message: "Walkover reporting via Slack is not yet implemented. Please use the dashboard." }
+      return { success: false, replyMessage: "Walkover reporting via Slack is not yet implemented. Please use the dashboard." }
     }
 
     case "fixtures":
@@ -243,7 +243,7 @@ export async function routeCommand(
     case "help":
       return {
         success: true,
-        message: [
+        replyMessage: [
           `*${orgName} Bot Commands*`,
           "",
           "`fixtures` - Show all upcoming matches with confirmed players",
@@ -257,7 +257,7 @@ export async function routeCommand(
       console.log("[Slack Router] Unknown command, raw text:", rawText)
       return {
         success: false,
-        message: "I didn't understand that command. Try:\n`report match vs @Opponent 11-7, 9-11, 11-5`\nor type `help` for all commands.",
+        replyMessage: "I didn't understand that command. Try:\n`report match vs @Opponent 11-7, 9-11, 11-5`\nor type `help` for all commands.",
       }
   }
 }

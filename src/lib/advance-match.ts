@@ -291,21 +291,21 @@ export async function advanceMatch(
     await checkAndCompleteTournament(ac, tcsData.data.tournament_id)
   }
 
-  if (isEditing && match.tournament_category_id) {
-    const tcsData = await ac
-      .from("tournament_categories")
-      .select("tournament_id")
-      .eq("id", match.tournament_category_id)
-      .single()
-    if (tcsData.data) {
-      await checkAndCompleteTournament(ac, tcsData.data.tournament_id)
-    }
-  }
-
   return { success: true }
 }
 
 async function checkAndCompleteTournament(ac: ReturnType<typeof createAdminClient>, tournamentId: string) {
+  const { data: tournament } = await ac
+    .from("tournaments")
+    .select("status")
+    .eq("id", tournamentId)
+    .single()
+
+  if (tournament?.status === "completed") {
+    console.log("[Advance Match] Tournament already completed, skipping:", tournamentId)
+    return
+  }
+
   const { data: tcs } = await ac
     .from("tournament_categories")
     .select("id")
@@ -315,18 +315,18 @@ async function checkAndCompleteTournament(ac: ReturnType<typeof createAdminClien
 
   const tcIds = tcs.map((tc: { id: string }) => tc.id)
 
-  const { data: completed } = await ac
+  const { count: completedCount } = await ac
     .from("bracket_matches")
-    .select("id", { count: "exact" })
+    .select("id", { count: "exact", head: true })
     .in("tournament_category_id", tcIds)
     .in("status", ["completed", "walkover"])
 
-  const { data: total } = await ac
+  const { count: totalCount } = await ac
     .from("bracket_matches")
-    .select("id", { count: "exact" })
+    .select("id", { count: "exact", head: true })
     .in("tournament_category_id", tcIds)
 
-  if (completed && total && completed.length === total.length) {
+  if (completedCount != null && totalCount != null && completedCount === totalCount) {
     console.log("[Advance Match] All matches completed, marking tournament as completed:", tournamentId)
     await ac
       .from("tournaments")

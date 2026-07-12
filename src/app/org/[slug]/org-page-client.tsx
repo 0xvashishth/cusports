@@ -257,7 +257,7 @@ function OrgPageContent({
                 <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow-lg">
                   {org.name}
                 </h1>
-                {org.ranking_config?.tagline && (
+                {typeof org.ranking_config?.tagline === "string" && org.ranking_config.tagline && (
                   <p className="text-lg text-white/80 mt-1">
                     {org.ranking_config.tagline as string}
                   </p>
