@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { notifyTournamentPublished } from "@/apps/slack/notifications/tournament"
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params
+  console.log("[Tournament PATCH] Request received:", { slug, id })
+
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -30,6 +33,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   }
 
   const body = await request.json()
+  console.log("[Tournament PATCH] Update body:", body)
+
+  // Check if this is a publish action so we can notify after update
+  const isPublishing = body.status === "published"
+
   const { error: updateError } = await adminClient
     .from("tournaments")
     .update(body)
@@ -37,7 +45,76 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
     .eq("organization_id", org.id)
 
   if (updateError) {
+    console.log("[Tournament PATCH] Update error:", updateError.message)
     return NextResponse.json({ error: updateError.message }, { status: 500 })
+  }
+
+  console.log("[Tournament PATCH] Tournament updated successfully")
+
+  // Send Slack notification if tournament was just published
+  if (isPublishing) {
+    console.log("[Tournament PATCH] Tournament published, fetching details for Slack notification")
+    const { data: tournament } = await adminClient
+      .from("tournaments")
+      .select("*")
+      .eq("id", id)
+      .single()
+
+    const { data: tournamentCategories } = await adminClient
+      .from("tournament_categories")
+      .select("category:categories(id, name, is_doubles, organization_id)")
+      .eq("tournament_id", id)
+
+    const categories = (tournamentCategories || [])
+      .map((tc) => (tc as Record<string, unknown>).category)
+      .filter(Boolean) as { id: string; name: string; is_doubles: boolean; organization_id: string }[]
+
+    if (tournament) {
+      console.log("[Tournament PATCH] Sending publish notification for:", tournament.name)
+      notifyTournamentPublished(org.id, slug, tournament, categories).catch((err) => {
+        console.error("[Tournament PATCH] Failed to send publish notification:", err)
+      })
+    }
+  }
+
+  return NextResponse.json({ success: true })
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
+  const { slug, id } = await params
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const adminClient = createAdminClient()
+
+  const { data: org } = await adminClient
+    .from("organizations")
+    .select("id")
+    .eq("slug", slug)
+    .single()
+
+  if (!org) return NextResponse.json({ error: "Organization not found" }, { status: 404 })
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("platform_role")
+    .eq("id", user.id)
+    .single()
+
+  if (!profile || (profile.platform_role !== "manager" && profile.platform_role !== "admin")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
+  const { error: delError } = await adminClient
+    .from("tournaments")
+    .delete()
+    .eq("id", id)
+    .eq("organization_id", org.id)
+
+  if (delError) {
+    return NextResponse.json({ error: delError.message }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

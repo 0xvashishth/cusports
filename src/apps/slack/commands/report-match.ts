@@ -14,6 +14,8 @@ export async function handlePlayerReport(
   teamId: string,
   botToken: string,
 ): Promise<SlackCommandResult> {
+  console.log("[Slack Report] handlePlayerReport:", { orgId, slackUserId, opponentName, games, channelId })
+
   const reporter = await findPlayerBySlackUserId(orgId, slackUserId, botToken)
   if (!reporter) {
     return { success: false, message: "Your Slack email is not linked to any player account in this organization. Please contact a manager." }
@@ -48,6 +50,7 @@ export async function handlePlayerReport(
     return { success: false, message: editCheck.error || "Match cannot be edited" }
   }
 
+  console.log("[Slack Report] Advancing match:", { matchId: match.matchId, winnerId: scoreValidation.winnerId, loserId: scoreValidation.loserId })
   const result = await advanceMatch({
     bracketMatchId: match.matchId,
     winnerId: scoreValidation.winnerId!,
@@ -57,6 +60,7 @@ export async function handlePlayerReport(
   })
 
   if (!result.success) {
+    console.log("[Slack Report] Failed to advance match:", result.error)
     return { success: false, message: `Failed to record result: ${result.error}` }
   }
 
@@ -67,6 +71,7 @@ export async function handlePlayerReport(
 
   const message = `Result recorded: ${winnerName} defeated ${loserName} (${scoreStr})${matchLabel ? `\n${matchLabel}` : ""}`
 
+  console.log("[Slack Report] Posting result to channel:", channelId)
   await postToSlackChannelById(orgId, channelId, message)
 
   return { success: true, message }

@@ -105,7 +105,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     }
   }
 
-  notifyTournamentCreated(org.id, slug, tournament, createdCategories).catch(() => {})
+  console.log("[Tournament Create] Tournament created:", tournament.id, "- sending Slack notification")
+  notifyTournamentCreated(org.id, slug, tournament, createdCategories).catch((err) => {
+    console.error("[Tournament Create] Failed to send Slack notification:", err)
+  })
 
   return NextResponse.json({ success: true, tournament })
 }

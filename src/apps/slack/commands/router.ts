@@ -14,7 +14,9 @@ interface ParsedCommand {
 }
 
 export function parseCommand(text: string): ParsedCommand {
+  console.log("[Slack Router] parseCommand input:", text)
   const cleaned = text.replace(/<@[A-Z0-9]+>/g, "").trim()
+  console.log("[Slack Router] Cleaned text:", cleaned)
 
   const reportMatch = cleaned.match(
     /report\s+match\s+vs\s+@?(\S+)\s+([\d\-,\s]+)/i,
@@ -32,9 +34,11 @@ export function parseCommand(text: string): ParsedCommand {
       .filter(Boolean) as { score_a: number; score_b: number }[]
 
     if (games.length === 0) {
+      console.log("[Slack Router] Parsed report but no valid games")
       return { type: "unknown" }
     }
 
+    console.log("[Slack Router] Parsed report match:", { opponentName, games })
     return { type: "report", opponentName, games }
   }
 
@@ -42,7 +46,9 @@ export function parseCommand(text: string): ParsedCommand {
     /report\s+walkover\s+vs\s+@?(\S+)/i,
   )
   if (walkoverMatch) {
-    return { type: "walkover", opponentName: walkoverMatch[1].replace(/[>_]/g, "") }
+    const opponentName = walkoverMatch[1].replace(/[>_]/g, "")
+    console.log("[Slack Router] Parsed walkover:", { opponentName })
+    return { type: "walkover", opponentName }
   }
 
   const managerReport = cleaned.match(
@@ -61,15 +67,21 @@ export function parseCommand(text: string): ParsedCommand {
       })
       .filter(Boolean) as { score_a: number; score_b: number }[]
 
-    if (games.length === 0) return { type: "unknown" }
+    if (games.length === 0) {
+      console.log("[Slack Router] Parsed manager report but no valid games")
+      return { type: "unknown" }
+    }
+    console.log("[Slack Router] Parsed manager report:", { playerA, playerB, games })
     return { type: "manager_report", playerA, playerB, games }
   }
 
   const helpMatch = cleaned.match(/^help$/i)
   if (helpMatch) {
+    console.log("[Slack Router] Parsed help command")
     return { type: "help" }
   }
 
+  console.log("[Slack Router] Command not recognized, returning unknown")
   return { type: "unknown" }
 }
 
@@ -82,16 +94,21 @@ export async function routeCommand(
   teamId: string,
   rawText: string,
 ): Promise<SlackCommandResult> {
+  console.log("[Slack Router] routeCommand called:", { orgId, orgSlug, slackUserId, channelId, teamId, rawText })
+
   const botToken = await getSlackBotToken(orgId)
   if (!botToken) {
+    console.log("[Slack Router] No bot token for org:", orgId)
     return { success: false, message: "Bot token not configured for this organization." }
   }
 
   const parsed = parseCommand(rawText)
+  console.log("[Slack Router] Parsed command:", parsed)
 
   switch (parsed.type) {
     case "report": {
       const reporter = await findPlayerBySlackUserId(orgId, slackUserId, botToken)
+      console.log("[Slack Router] Report command - reporter:", reporter)
       if (!reporter) {
         return { success: false, message: "Your Slack email is not linked to any player account in this organization." }
       }
@@ -104,10 +121,12 @@ export async function routeCommand(
 
     case "manager_report": {
       const reporter = await findPlayerBySlackUserId(orgId, slackUserId, botToken)
+      console.log("[Slack Router] Manager report command - reporter:", reporter)
       if (!reporter) {
         return { success: false, message: "Your Slack email is not linked to any player account." }
       }
       const managerCheck = await isManager(orgId, reporter.id)
+      console.log("[Slack Router] Manager check:", managerCheck)
       if (!managerCheck) {
         return { success: false, message: "Only managers can use the 'report result @A vs @B' command." }
       }
@@ -143,6 +162,7 @@ export async function routeCommand(
       }
 
     default:
+      console.log("[Slack Router] Unknown command, raw text:", rawText)
       return {
         success: false,
         message: "I didn't understand that command. Try:\n`report match vs @Opponent 11-7, 9-11, 11-5`\nor type `help` for all commands.",

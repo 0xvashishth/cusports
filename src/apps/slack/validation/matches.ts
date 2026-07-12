@@ -10,15 +10,18 @@ export async function findScheduledMatch(
   playerAId: string,
   playerBId: string,
 ): Promise<ResolvedMatch | null> {
+  console.log("[Slack Matches] findScheduledMatch:", { orgId, playerAId, playerBId })
   const ac = createAdminClient()
 
   const playerIds = [playerAId, playerBId]
 
-  const { data: matches } = await ac
+  const { data: matches, error } = await ac
     .from("bracket_matches")
     .select("id, tournament_category_id, player_a_id, player_b_id, status, is_bye")
     .in("status", ["scheduled", "ongoing"])
     .eq("is_bye", false)
+
+  console.log("[Slack Matches] Bracket matches found:", { count: matches?.length, error: error?.message })
 
   if (!matches) return null
 
@@ -28,20 +31,24 @@ export async function findScheduledMatch(
     return hasA && hasB && m.player_a_id !== m.player_b_id
   })
 
+  console.log("[Slack Matches] Match found between players:", match?.id || "none")
+
   if (!match) return null
 
-  const { data: tc } = await ac
+  const { data: tc, error: tcErr } = await ac
     .from("tournament_categories")
     .select("id, tournament_id, category_id, tournament:tournaments(name), category:categories(name)")
     .eq("id", match.tournament_category_id)
     .single()
+
+  console.log("[Slack Matches] Tournament category lookup:", { tc, error: tcErr?.message })
 
   if (!tc) return null
 
   const tournament = tc.tournament as unknown as { name: string } | null
   const category = tc.category as unknown as { name: string } | null
 
-  return {
+  const result = {
     matchId: match.id,
     tournamentCategoryId: match.tournament_category_id,
     playerAId: match.player_a_id,
@@ -50,6 +57,8 @@ export async function findScheduledMatch(
     tournamentName: tournament?.name || null,
     categoryName: category?.name || null,
   }
+  console.log("[Slack Matches] Resolved match:", result)
+  return result
 }
 
 /**
@@ -60,15 +69,18 @@ export async function findEditableMatch(
   playerAId: string,
   playerBId: string,
 ): Promise<ResolvedMatch | null> {
+  console.log("[Slack Matches] findEditableMatch:", { orgId, playerAId, playerBId })
   const ac = createAdminClient()
 
   const playerIds = [playerAId, playerBId]
 
-  const { data: matches } = await ac
+  const { data: matches, error } = await ac
     .from("bracket_matches")
     .select("id, tournament_category_id, player_a_id, player_b_id, status, is_bye")
     .in("status", ["scheduled", "ongoing", "completed", "walkover"])
     .eq("is_bye", false)
+
+  console.log("[Slack Matches] Editable matches found:", { count: matches?.length, error: error?.message })
 
   if (!matches) return null
 
@@ -111,6 +123,8 @@ export function validateScores(
   opponentId: string,
   match: ResolvedMatch,
 ): ScoreValidation {
+  console.log("[Slack Matches] validateScores:", { games, reporterId, opponentId, matchId: match.matchId })
+
   if (!games || games.length === 0) {
     return { valid: false, error: "No game scores provided. Use 'report walkover' for walkovers.", gameWins: { a: 0, b: 0 } }
   }
@@ -144,18 +158,21 @@ export function validateScores(
   const winnerId = reporterWins > opponentWins ? reporterId : opponentId
   const loserId = winnerId === reporterId ? opponentId : reporterId
 
-  return {
+  const result = {
     valid: true,
     winnerId,
     loserId,
     gameWins,
   }
+  console.log("[Slack Matches] Score validation result:", result)
+  return result
 }
 
 /**
  * Check if downstream matches have been played (prevents editing).
  */
 export async function validateMatchEditable(matchId: string): Promise<{ editable: boolean; error?: string }> {
+  console.log("[Slack Matches] validateMatchEditable:", matchId)
   const ac = createAdminClient()
 
   const { data: match } = await ac
@@ -179,6 +196,7 @@ export async function validateMatchEditable(matchId: string): Promise<{ editable
   )
 
   if (played.length > 0) {
+    console.log("[Slack Matches] Match not editable - downstream matches played:", played.length)
     return { editable: false, error: "Cannot edit: a downstream match has already been played" }
   }
 
@@ -189,6 +207,7 @@ export async function validateMatchEditable(matchId: string): Promise<{ editable
  * Check if a user is a manager or admin in the org.
  */
 export async function isManager(orgId: string, profileId: string): Promise<boolean> {
+  console.log("[Slack Matches] isManager check:", { orgId, profileId })
   const ac = createAdminClient()
 
   const { data: profile } = await ac
@@ -197,7 +216,10 @@ export async function isManager(orgId: string, profileId: string): Promise<boole
     .eq("id", profileId)
     .single()
 
-  if (profile?.platform_role === "admin") return true
+  if (profile?.platform_role === "admin") {
+    console.log("[Slack Matches] User is platform admin")
+    return true
+  }
 
   const { data: member } = await ac
     .from("org_members")
@@ -206,5 +228,7 @@ export async function isManager(orgId: string, profileId: string): Promise<boole
     .eq("profile_id", profileId)
     .single()
 
-  return member?.org_role === "manager"
+  const result = member?.org_role === "manager"
+  console.log("[Slack Matches] Manager check result:", result, "org_role:", member?.org_role)
+  return result
 }
