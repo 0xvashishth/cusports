@@ -9,38 +9,73 @@ import type { SlackCommandResult } from "../types"
 interface ParsedCommand {
   type: "report" | "manager_report" | "walkover" | "fixtures" | "help" | "unknown"
   opponentName?: string
+  opponentSlackUserId?: string
   games?: { score_a: number; score_b: number }[]
   playerA?: string
+  playerASlackUserId?: string
   playerB?: string
+  playerBSlackUserId?: string
+}
+
+function parseGames(gamesStr: string): { score_a: number; score_b: number }[] {
+  return gamesStr
+    .split(",")
+    .map((g) => {
+      const parts = g.trim().split("-").map(Number)
+      if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return null
+      return { score_a: parts[0], score_b: parts[1] }
+    })
+    .filter(Boolean) as { score_a: number; score_b: number }[]
 }
 
 export function parseCommand(text: string): ParsedCommand {
   console.log("[Slack Router] parseCommand input:", text)
+
+  const mentionRe = /<@([A-Z0-9]+)>/g
+  const mentionIds: string[] = []
+  let m: RegExpExecArray | null
+  while ((m = mentionRe.exec(text)) !== null) {
+    mentionIds.push(m[1])
+  }
+  console.log("[Slack Router] Mention IDs found:", mentionIds)
+
   const cleaned = text.replace(/<@[A-Z0-9]+>/g, "").trim()
   console.log("[Slack Router] Cleaned text:", cleaned)
 
-  const reportMatch = cleaned.match(
-    /report\s+match\s+vs\s+@?(\S+)\s+([\d\-,\s]+)/i,
+  const reportMatchRaw = text.match(
+    /report\s+match\s+vs\s+<@([A-Z0-9]+)>\s+([\d\-,\s]+)/i,
   )
-  if (reportMatch) {
-    const opponentName = reportMatch[1].replace(/[>_]/g, "")
-    const gamesStr = reportMatch[2]
-    const games = gamesStr
-      .split(",")
-      .map((g) => {
-        const parts = g.trim().split("-").map(Number)
-        if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return null
-        return { score_a: parts[0], score_b: parts[1] }
-      })
-      .filter(Boolean) as { score_a: number; score_b: number }[]
-
+  if (reportMatchRaw) {
+    const opponentSlackUserId = reportMatchRaw[1]
+    const games = parseGames(reportMatchRaw[2])
     if (games.length === 0) {
-      console.log("[Slack Router] Parsed report but no valid games")
+      console.log("[Slack Router] Parsed report (raw mention) but no valid games")
       return { type: "unknown" }
     }
+    console.log("[Slack Router] Parsed report match (raw mention):", { opponentSlackUserId, games })
+    return { type: "report", opponentSlackUserId, games }
+  }
 
-    console.log("[Slack Router] Parsed report match:", { opponentName, games })
+  const reportMatchCleaned = cleaned.match(
+    /report\s+match\s+vs\s+@?(\S+)\s+([\d\-,\s]+)/i,
+  )
+  if (reportMatchCleaned) {
+    const opponentName = reportMatchCleaned[1].replace(/[>_]/g, "")
+    const games = parseGames(reportMatchCleaned[2])
+    if (games.length === 0) {
+      console.log("[Slack Router] Parsed report (name) but no valid games")
+      return { type: "unknown" }
+    }
+    console.log("[Slack Router] Parsed report match (name):", { opponentName, games })
     return { type: "report", opponentName, games }
+  }
+
+  const walkoverRaw = text.match(
+    /report\s+walkover\s+vs\s+<@([A-Z0-9]+)>/i,
+  )
+  if (walkoverRaw) {
+    console.log("[Slack Router] Parsed walkover (raw mention):", { opponentSlackUserId: walkoverRaw[1] })
+    return { type: "walkover", opponentSlackUserId: walkoverRaw[1] }
   }
 
   const walkoverMatch = cleaned.match(
@@ -48,31 +83,37 @@ export function parseCommand(text: string): ParsedCommand {
   )
   if (walkoverMatch) {
     const opponentName = walkoverMatch[1].replace(/[>_]/g, "")
-    console.log("[Slack Router] Parsed walkover:", { opponentName })
+    console.log("[Slack Router] Parsed walkover (name):", { opponentName })
     return { type: "walkover", opponentName }
   }
 
-  const managerReport = cleaned.match(
-    /report\s+result\s+@?(\S+)\s+vs\s+@?(\S+)\s+([\d\-,\s]+)/i,
+  const managerReportRaw = text.match(
+    /report\s+result\s+<@([A-Z0-9]+)>\s+vs\s+<@([A-Z0-9]+)>\s+([\d\-,\s]+)/i,
   )
-  if (managerReport) {
-    const playerA = managerReport[1].replace(/[>_]/g, "")
-    const playerB = managerReport[2].replace(/[>_]/g, "")
-    const gamesStr = managerReport[3]
-    const games = gamesStr
-      .split(",")
-      .map((g) => {
-        const parts = g.trim().split("-").map(Number)
-        if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return null
-        return { score_a: parts[0], score_b: parts[1] }
-      })
-      .filter(Boolean) as { score_a: number; score_b: number }[]
-
+  if (managerReportRaw) {
+    const playerASlackUserId = managerReportRaw[1]
+    const playerBSlackUserId = managerReportRaw[2]
+    const games = parseGames(managerReportRaw[3])
     if (games.length === 0) {
-      console.log("[Slack Router] Parsed manager report but no valid games")
+      console.log("[Slack Router] Parsed manager report (raw mention) but no valid games")
       return { type: "unknown" }
     }
-    console.log("[Slack Router] Parsed manager report:", { playerA, playerB, games })
+    console.log("[Slack Router] Parsed manager report (raw mention):", { playerASlackUserId, playerBSlackUserId, games })
+    return { type: "manager_report", playerASlackUserId, playerBSlackUserId, games }
+  }
+
+  const managerReportCleaned = cleaned.match(
+    /report\s+result\s+@?(\S+)\s+vs\s+@?(\S+)\s+([\d\-,\s]+)/i,
+  )
+  if (managerReportCleaned) {
+    const playerA = managerReportCleaned[1].replace(/[>_]/g, "")
+    const playerB = managerReportCleaned[2].replace(/[>_]/g, "")
+    const games = parseGames(managerReportCleaned[3])
+    if (games.length === 0) {
+      console.log("[Slack Router] Parsed manager report (name) but no valid games")
+      return { type: "unknown" }
+    }
+    console.log("[Slack Router] Parsed manager report (name):", { playerA, playerB, games })
     return { type: "manager_report", playerA, playerB, games }
   }
 
@@ -117,11 +158,32 @@ export async function routeCommand(
       const reporter = await findPlayerBySlackUserId(orgId, slackUserId, botToken)
       console.log("[Slack Router] Report command - reporter:", reporter)
       if (!reporter) {
-        return { success: false, message: "Your Slack email is not linked to any player account in this organization." }
+        return { success: false, message: "Your Slack email is not linked to any player account in this organization. Please make sure your Slack profile has your email set and it matches your player account." }
       }
+
+      let opponent: { id: string; fullName: string } | null = null
+      if (parsed.opponentSlackUserId) {
+        opponent = await findPlayerBySlackUserId(orgId, parsed.opponentSlackUserId, botToken)
+        console.log("[Slack Router] Opponent lookup by Slack user ID:", opponent)
+        if (!opponent) {
+          return { success: false, message: "The mentioned opponent's Slack email is not linked to any player account in this organization." }
+        }
+      } else if (parsed.opponentName) {
+        const { findPlayerByName } = await import("../validation/players")
+        opponent = await findPlayerByName(orgId, parsed.opponentName)
+        console.log("[Slack Router] Opponent lookup by name:", opponent)
+        if (!opponent) {
+          return { success: false, message: `Player "${parsed.opponentName}" not found. Make sure the full name matches exactly.` }
+        }
+      }
+
+      if (!opponent) {
+        return { success: false, message: "Could not identify the opponent. Please mention them with @username." }
+      }
+
       return handlePlayerReport(
         orgId, orgSlug, slackUserId,
-        parsed.opponentName!, parsed.games!,
+        opponent.fullName, parsed.games!,
         channelId, teamId, botToken,
       )
     }
@@ -137,9 +199,28 @@ export async function routeCommand(
       if (!managerCheck) {
         return { success: false, message: "Only managers can use the 'report result @A vs @B' command." }
       }
+
+      let playerAName = parsed.playerA
+      if (parsed.playerASlackUserId) {
+        const playerA = await findPlayerBySlackUserId(orgId, parsed.playerASlackUserId, botToken)
+        if (!playerA) return { success: false, message: "The first mentioned player's Slack email is not linked to any player account." }
+        playerAName = playerA.fullName
+      }
+
+      let playerBName = parsed.playerB
+      if (parsed.playerBSlackUserId) {
+        const playerB = await findPlayerBySlackUserId(orgId, parsed.playerBSlackUserId, botToken)
+        if (!playerB) return { success: false, message: "The second mentioned player's Slack email is not linked to any player account." }
+        playerBName = playerB.fullName
+      }
+
+      if (!playerAName || !playerBName) {
+        return { success: false, message: "Could not identify both players. Please mention them with @username." }
+      }
+
       return handleManagerReport(
         orgId, orgSlug,
-        parsed.playerA!, parsed.playerB!, parsed.games!,
+        playerAName, playerBName, parsed.games!,
         channelId,
       )
     }
