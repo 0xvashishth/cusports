@@ -1,8 +1,8 @@
-import { getSlackBotToken, lookupOrgBySlackTeam } from "../client"
+import { getSlackBotToken } from "../client"
 import { findPlayerBySlackUserId } from "../validation/players"
 import { isManager } from "../validation/matches"
 import { handlePlayerReport } from "./report-match"
-import { handleManagerReport, handleManagerWalkover } from "./manager-report"
+import { handleManagerReport } from "./manager-report"
 import type { SlackCommandResult } from "../types"
 
 interface ParsedCommand {

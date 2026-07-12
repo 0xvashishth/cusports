@@ -1,5 +1,4 @@
 import { createAdminClient } from "@/lib/supabase/admin"
-import type { ResolvedPlayers } from "../types"
 
 /**
  * Look up a player by their Slack user ID.

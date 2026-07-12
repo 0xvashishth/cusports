@@ -7,8 +7,17 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Trophy, Globe } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 
+interface AdminTournament {
+  id: string
+  name: string
+  status: string
+  start_date: string
+  end_date: string
+  organization?: { name: string }
+}
+
 export default function AdminTournamentsPage() {
-  const [tournaments, setTournaments] = useState<any[]>([])
+  const [tournaments, setTournaments] = useState<AdminTournament[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

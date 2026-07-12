@@ -31,7 +31,6 @@ export default function AdminOrganizationsPage() {
   const [createError, setCreateError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState<string | null>(null)
 
   useEffect(() => {
     loadOrgs()
@@ -132,15 +131,12 @@ export default function AdminOrganizationsPage() {
   }
 
   async function deleteOrg(id: string) {
-    setDeleting(id)
     const res = await fetch(`/api/admin/organizations?id=${id}`, { method: "DELETE" })
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: "Request failed" }))
       setEditError(err.error || "Failed to delete organization")
-      setDeleting(null)
       return
     }
-    setDeleting(null)
     loadOrgs()
   }
 

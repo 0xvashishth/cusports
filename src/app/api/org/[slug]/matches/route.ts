@@ -59,7 +59,7 @@ export async function GET(
     const matches = bracketMatches || [];
 
     const matchIds = matches.map((m: { id: string }) => m.id);
-    let gamesByMatchId = new Map<string, unknown[]>();
+    const gamesByMatchId = new Map<string, unknown[]>();
     if (matchIds.length > 0) {
       const { data: games } = await adminClient
         .from("match_games")

@@ -60,7 +60,7 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
     if (oppId) opponentIds.add(oppId)
   }
 
-  let opponentMap = new Map<string, string>()
+  const opponentMap = new Map<string, string>()
   if (opponentIds.size > 0) {
     const { data: opponentProfiles } = await supabase
       .from("profiles")

@@ -405,7 +405,7 @@ export function PlayersClient({ org, members, rankings, categories }: PlayersCli
                                 r.rating === null && "border-muted-foreground/30 text-muted-foreground italic",
                               )}
                             >
-                              {(r as any).category_name || "Unknown"}: {r.rating ?? "Unranked"}
+                              {(r as Ranking & { category_name: string }).category_name || "Unknown"}: {r.rating ?? "Unranked"}
                             </Badge>
                           )) : <span className="text-xs text-muted-foreground italic">No rankings</span>}
                         </div>

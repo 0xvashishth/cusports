@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OrgPageClient } from "./org-page-client";
-import type { BracketMatch, MatchGame, Category, Profile, Ranking } from "@/lib/types";
+import type { MatchGame, Ranking } from "@/lib/types";
 
 export default async function OrgPage({
   params,
@@ -194,8 +194,6 @@ export default async function OrgPage({
   const memberSet = new Set((orgMembers || []).map((m: { profile_id: string }) => m.profile_id));
 
   // Compute match stats from completed bracket matches
-  const { data: tcData2 } = await adminClient.from("tournament_categories").select("id, category_id")
-
   const { data: allBracketMatches2 } = await adminClient
     .from("bracket_matches")
     .select("player_a_id, player_b_id, winner_id, tournament_category_id, is_bye")
@@ -261,7 +259,7 @@ interface OrgBracketMatch {
   created_at: string
   tournament: { name: string; id: string } | null
   category: { name: string; id: string; is_doubles: boolean } | null
-  player_a: Record<string, unknown> | null
-  player_b: Record<string, unknown> | null
+  player_a: { full_name: string | null; email: string | null; id?: string } | null
+  player_b: { full_name: string | null; email: string | null; id?: string } | null
   games: MatchGame[]
 }

@@ -51,7 +51,6 @@ function nextPowerOf2(n: number): number {
  */
 function createSeededBracket(participantCount: number): number[] {
   const bracketSize = nextPowerOf2(participantCount)
-  const totalRounds = Math.log2(bracketSize)
 
   // Build the bracket order for bracketSize using recursive seeding
   // For bracketSize=2: [0, 1]
@@ -239,7 +238,6 @@ function generateSingleElimination(
   // Wire winner_next pointers for each round except the last
   for (let round = 0; round < totalRounds - 1; round++) {
     const matchesInRound = bracketSize / Math.pow(2, round + 1)
-    const nextMatchesInRound = matchesInRound / 2
 
     for (let m = 0; m < matchesInRound; m++) {
       const match = matches.find(

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { advanceMatch, walkoverMatch } from "@/lib/advance-match"
 
 export async function POST(request: Request, { params: _params }: { params: Promise<{ slug: string }> }) {
+  void _params
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()

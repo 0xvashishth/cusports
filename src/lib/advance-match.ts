@@ -190,8 +190,6 @@ export async function advanceMatch(
     }
   }
 
-  const winnerSlot = match.player_a_id === winnerId ? "A" : "B"
-
   // Build wiring map for runtime bye detection
   const wiringMap = await buildWiringMap(ac, match.tournament_category_id)
 

@@ -38,7 +38,7 @@ type ToastActionElement = React.ReactElement<{
   onClick?: () => void
 }>
 
-interface ToastProps extends React.HTMLAttributes<HTMLDivElement> {}
+type ToastProps = React.HTMLAttributes<HTMLDivElement>
 
 type ToasterToast = {
   id: string
@@ -116,8 +116,6 @@ const toastVariants = cva(
     },
   }
 )
-
-interface ToastProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 const ToastViewport = React.forwardRef<
   HTMLOListElement,

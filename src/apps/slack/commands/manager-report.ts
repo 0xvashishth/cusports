@@ -1,7 +1,7 @@
 import { advanceMatch, walkoverMatch } from "@/lib/advance-match"
 import { postToSlackChannelById } from "../client"
 import { findPlayerByName, validateBothPlayers } from "../validation/players"
-import { findScheduledMatch, findEditableMatch, validateScores, validateMatchEditable } from "../validation/matches"
+import { findScheduledMatch, validateScores, validateMatchEditable } from "../validation/matches"
 import type { SlackCommandResult } from "../types"
 
 export async function handleManagerReport(

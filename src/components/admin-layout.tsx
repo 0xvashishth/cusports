@@ -9,7 +9,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import {
-  LayoutDashboard,
   Building2,
   Users,
   Trophy,
@@ -20,7 +19,7 @@ import {
   LogOut,
   Shield,
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 
 const navItems = [
@@ -84,10 +83,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-
-  useEffect(() => setMounted(true), [])
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -115,11 +111,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           Admin
         </div>
         <div className="ml-auto">
-          {mounted && (
-            <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-          )}
+          <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
         </div>
       </header>
 
@@ -136,11 +130,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <span className="capitalize">{pathname.split("/").pop() || "overview"}</span>
           </div>
           <div className="flex items-center gap-2">
-            {mounted && (
-              <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </Button>
-            )}
+            <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <Button variant="ghost" size="icon" onClick={handleSignOut}>
               <LogOut className="h-4 w-4" />
             </Button>

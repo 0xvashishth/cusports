@@ -400,11 +400,6 @@ function BracketSection({
     return () => clearTimeout(timer)
   }, [section])
 
-  const isSingleBracket =
-    section.side === "single" ||
-    section.side === "grand_final" ||
-    section.side === "third_place"
-
   return (
     <section>
       <div className="flex items-center gap-2 mb-4">
@@ -460,7 +455,7 @@ function BracketSection({
           })}
         </svg>
 
-          {section.rounds.map((round, roundIdx) => (
+          {section.rounds.map((round) => (
             <div
               key={round.roundNumber}
               className="flex flex-col w-[220px] shrink-0"

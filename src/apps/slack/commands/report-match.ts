@@ -1,4 +1,3 @@
-import { createAdminClient } from "@/lib/supabase/admin"
 import { advanceMatch } from "@/lib/advance-match"
 import { postToSlackChannelById } from "../client"
 import { findPlayerBySlackUserId, findPlayerByName, validateBothPlayers } from "../validation/players"

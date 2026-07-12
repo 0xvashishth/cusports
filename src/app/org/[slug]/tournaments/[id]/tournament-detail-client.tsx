@@ -35,7 +35,6 @@ import type {
   Profile,
   Organization,
   Category,
-  FixturesConfig,
   BracketType,
   SeedingMethod,
   ByeHandling,
@@ -59,7 +58,6 @@ interface TournamentDetailClientProps {
   tournament: Tournament;
   categories: (TournamentCategory & { category?: Category })[];
   initialBracketMatches: BracketMatch[];
-  initialFixturesConfigs: FixturesConfig[];
   initialEntries: {
     id: string;
     profile_id: string;
@@ -77,7 +75,6 @@ export function TournamentDetailClient({
   tournament,
   categories,
   initialBracketMatches,
-  initialFixturesConfigs,
   initialEntries,
   orgPlayers,
   playerNameMap,
@@ -87,7 +84,6 @@ export function TournamentDetailClient({
 
   const [entries, setEntries] = useState(initialEntries ?? []);
   const [bracketMatches, setBracketMatches] = useState<BracketMatch[]>(initialBracketMatches ?? []);
-  const [fixturesConfigs, setFixturesConfigs] = useState<FixturesConfig[]>(initialFixturesConfigs ?? []);
   const [activeTab, setActiveTab] = useState("matches");
 
   const [addPlayerOpen, setAddPlayerOpen] = useState(false);
@@ -117,10 +113,9 @@ export function TournamentDetailClient({
   const [advancingRound, setAdvancingRound] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    const [entriesRes, bracketRes, configRes] = await Promise.all([
+    const [entriesRes, bracketRes] = await Promise.all([
       fetch(`/api/org/${org.slug}/tournaments/${tournament.id}/entries`),
       fetch(`/api/org/${org.slug}/matches?tournamentId=${tournament.id}`),
-      fetch(`/api/org/${org.slug}/fixtures-configs?tournamentId=${tournament.id}`),
     ]);
     if (entriesRes.ok) {
       const data = await entriesRes.json();

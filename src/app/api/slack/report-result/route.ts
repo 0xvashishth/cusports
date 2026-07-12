@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { lookupOrgBySlackTeam, isChannelAllowed, getSlackBotToken, postToSlackChannelById } from "@/apps/slack/client"
+import { lookupOrgBySlackTeam, isChannelAllowed, getSlackBotToken } from "@/apps/slack/client"
 import { findPlayerBySlackUserId } from "@/apps/slack/validation/players"
 import { routeCommand } from "@/apps/slack/commands/router"
 
