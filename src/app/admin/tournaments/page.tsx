@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Trophy, Globe } from "lucide-react"
@@ -14,12 +13,16 @@ export default function AdminTournamentsPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from("tournaments")
-        .select("*, organization:organizations(name, slug)")
-        .order("created_at", { ascending: false })
-      if (data) setTournaments(data)
+      try {
+        const res = await fetch("/api/admin/tournaments")
+        const data = await res.json()
+        console.log("[admin/tournaments] status:", res.status, "data:", data)
+        if (res.ok && Array.isArray(data)) {
+          setTournaments(data)
+        }
+      } catch (e) {
+        console.error("[admin/tournaments] fetch error:", e)
+      }
       setLoading(false)
     }
     load()
