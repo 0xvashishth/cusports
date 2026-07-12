@@ -107,5 +107,5 @@ export async function handleFixtures(orgId: string): Promise<SlackCommandResult>
 
   const message = lines.join("\n").trim()
   console.log("[Slack Fixtures] Sending fixtures:", message)
-  return { success: true, message }
+  return { success: true, replyMessage: message }
 }
