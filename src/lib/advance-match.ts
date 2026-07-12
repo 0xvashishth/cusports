@@ -195,6 +195,25 @@ export async function advanceMatch(
   // Build wiring map for runtime bye detection
   const wiringMap = await buildWiringMap(ac, match.tournament_category_id)
 
+  // 1. Replace game scores FIRST (before updating match status).
+  //    If this fails, the match stays in its previous state — no partial writes.
+  await ac.from("match_games").delete().eq("bracket_match_id", bracketMatchId)
+
+  if (games.length > 0) {
+    const gameInserts = games.map((g, i) => ({
+      game_number: i + 1,
+      score_a: g.score_a,
+      score_b: g.score_b,
+      bracket_match_id: bracketMatchId,
+    }))
+    const { error: insertError } = await ac.from("match_games").insert(gameInserts)
+
+    if (insertError) {
+      return { success: false, error: insertError.message }
+    }
+  }
+
+  // 2. NOW update match status — only after games are safely persisted.
   const { error: updateError } = await ac
     .from("bracket_matches")
     .update({
@@ -206,23 +225,6 @@ export async function advanceMatch(
 
   if (updateError) {
     return { success: false, error: updateError.message }
-  }
-
-  await ac.from("match_games").delete().eq("bracket_match_id", bracketMatchId)
-
-  if (games.length > 0) {
-    const gameInserts = games.map((g, i) => ({
-      match_id: null,
-      game_number: i + 1,
-      score_a: g.score_a,
-      score_b: g.score_b,
-      bracket_match_id: bracketMatchId,
-    }))
-    const { error: insertError } = await ac.from("match_games").insert(gameInserts)
-
-    if (insertError) {
-      return { success: false, error: insertError.message }
-    }
   }
 
   if (match.winner_next_match_id) {

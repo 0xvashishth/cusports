@@ -37,7 +37,7 @@ export async function POST(request: Request, { params: _params }: { params: Prom
       winnerId,
       loserId,
       games: games || [],
-      reportedBy: "manager",
+      reportedVia: "manager",
     })
   }
 

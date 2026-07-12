@@ -33,8 +33,8 @@ CREATE TABLE public.org_members (
   status text DEFAULT 'invited'::text CHECK (status = ANY (ARRAY['invited'::text, 'active'::text])),
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT org_members_pkey PRIMARY KEY (id),
-  CONSTRAINT org_members_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
-  CONSTRAINT org_members_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id)
+  CONSTRAINT org_members_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id),
+  CONSTRAINT org_members_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id)
 );
 CREATE TABLE public.categories (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -84,34 +84,13 @@ CREATE TABLE public.tournament_categories (
   CONSTRAINT tournament_categories_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id),
   CONSTRAINT tournament_categories_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
 );
-CREATE TABLE public.matches (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  organization_id uuid,
-  tournament_id uuid,
-  category_id uuid,
-  round text,
-  player_a_id uuid,
-  player_b_id uuid,
-  scheduled_at timestamp with time zone,
-  status text DEFAULT 'scheduled'::text CHECK (status = ANY (ARRAY['scheduled'::text, 'ongoing'::text, 'completed'::text, 'walkover'::text, 'cancelled'::text])),
-  winner_id uuid,
-  reported_via text DEFAULT 'manager'::text CHECK (reported_via = ANY (ARRAY['manager'::text, 'slack'::text, 'player'::text])),
-  approval_status text DEFAULT 'n/a'::text CHECK (approval_status = ANY (ARRAY['n/a'::text, 'pending'::text, 'approved'::text])),
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT matches_pkey PRIMARY KEY (id),
-  CONSTRAINT matches_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
-  CONSTRAINT matches_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id),
-  CONSTRAINT matches_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
-);
 CREATE TABLE public.match_games (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  match_id uuid,
   game_number integer NOT NULL,
   score_a integer NOT NULL,
   score_b integer NOT NULL,
   bracket_match_id uuid,
   CONSTRAINT match_games_pkey PRIMARY KEY (id),
-  CONSTRAINT match_games_match_id_fkey FOREIGN KEY (match_id) REFERENCES public.matches(id),
   CONSTRAINT match_games_bracket_match_fkey FOREIGN KEY (bracket_match_id) REFERENCES public.bracket_matches(id)
 );
 CREATE TABLE public.announcements (
@@ -125,8 +104,8 @@ CREATE TABLE public.announcements (
   ends_at timestamp with time zone NOT NULL,
   created_by uuid,
   CONSTRAINT announcements_pkey PRIMARY KEY (id),
-  CONSTRAINT announcements_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
-  CONSTRAINT announcements_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+  CONSTRAINT announcements_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id),
+  CONSTRAINT announcements_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id)
 );
 CREATE TABLE public.org_integrations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -145,8 +124,8 @@ CREATE TABLE public.activity_log (
   details jsonb DEFAULT '{}'::jsonb,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT activity_log_pkey PRIMARY KEY (id),
-  CONSTRAINT activity_log_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
-  CONSTRAINT activity_log_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES public.profiles(id)
+  CONSTRAINT activity_log_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES public.profiles(id),
+  CONSTRAINT activity_log_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id)
 );
 CREATE TABLE public.tournament_entries (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -156,8 +135,8 @@ CREATE TABLE public.tournament_entries (
   seed integer,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT tournament_entries_pkey PRIMARY KEY (id),
-  CONSTRAINT tournament_entries_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id),
   CONSTRAINT tournament_entries_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id),
+  CONSTRAINT tournament_entries_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id),
   CONSTRAINT tournament_entries_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
 );
 CREATE TABLE public.fixtures_config (

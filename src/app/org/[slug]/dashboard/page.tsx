@@ -58,50 +58,16 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
       .eq("status", "completed"),
   ])
 
-  // ---- Matches (both tables) ----
-  const [
-    { count: legacyMatchCount },
-    { count: legacyCompletedCount },
-    { count: legacyScheduledCount },
-    { count: legacyOngoingCount },
-    { count: legacyPendingCount },
-    { data: bracketMatchRows },
-    { data: bracketCompletedRows },
-  ] = await Promise.all([
-    admin
-      .from("matches")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", org.id),
-    admin
-      .from("matches")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", org.id)
-      .eq("status", "completed"),
-    admin
-      .from("matches")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", org.id)
-      .eq("status", "scheduled"),
-    admin
-      .from("matches")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", org.id)
-      .eq("status", "ongoing"),
-    admin
-      .from("matches")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", org.id)
-      .eq("approval_status", "pending"),
-    // bracket_matches joined via tournament_categories -> tournaments
-    admin
-      .from("bracket_matches")
-      .select("id, status, created_at, tournament_category_id", { count: "exact" })
-      .in("status", ["pending", "scheduled", "ongoing", "completed", "walkover"]),
-    admin
-      .from("bracket_matches")
-      .select("id, status, created_at, tournament_category_id")
-      .eq("status", "completed"),
-  ])
+  // ---- Bracket matches ----
+  const { data: bracketMatchRows } = await admin
+    .from("bracket_matches")
+    .select("id, status, created_at, tournament_category_id")
+    .in("status", ["pending", "scheduled", "ongoing", "completed", "walkover"])
+
+  const { data: bracketCompletedRows } = await admin
+    .from("bracket_matches")
+    .select("id, status, created_at, tournament_category_id")
+    .eq("status", "completed")
 
   // Filter bracket matches to this org via tournament_categories map
   const { data: tcRows } = await admin
@@ -118,7 +84,6 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
   )
   const tcToCategoryId = new Map<string, string>()
 
-  // Get tournament_category -> category mapping
   const { data: tcFullRows } = await admin
     .from("tournament_categories")
     .select("id, category_id")
@@ -134,14 +99,13 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
     (bm: { id: string }) => orgBracketMatches.some((obm: { id: string }) => obm.id === bm.id)
   )
 
-  const totalMatches = (legacyMatchCount || 0) + orgBracketMatches.length
-  const completedMatches = (legacyCompletedCount || 0) + orgBracketCompleted.length
-  const scheduledMatches = (legacyScheduledCount || 0) + orgBracketMatches.filter((m: { status: string }) => m.status === "scheduled").length
-  const ongoingMatches = (legacyOngoingCount || 0) + orgBracketMatches.filter((m: { status: string }) => m.status === "ongoing").length
-  const pendingApprovalMatches = (legacyPendingCount || 0)
+  const totalMatches = orgBracketMatches.length
+  const completedMatches = orgBracketCompleted.length
+  const scheduledMatches = orgBracketMatches.filter((m: { status: string }) => m.status === "scheduled").length
+  const ongoingMatches = orgBracketMatches.filter((m: { status: string }) => m.status === "ongoing").length
+  const pendingApprovalMatches = 0
 
   // ---- Top players (by rating/points) ----
-  // Fetch all rankings for this org (no FK join on entity_id)
   const { data: topRankings } = await admin
     .from("rankings")
     .select(`
@@ -158,7 +122,6 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
     .eq("organization_id", org.id)
     .eq("entity_type", "player")
 
-  // Collect unique entity_ids, verify they exist as org members with profiles
   const allEntityIds = [...new Set((topRankings || []).map((r: { entity_id: string }) => r.entity_id))]
 
   const [{ data: memberRows }, { data: profileRows }] = await Promise.all([
@@ -173,7 +136,6 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
   const memberSet = new Set((memberRows || []).map((m: { profile_id: string }) => m.profile_id))
   const profileMap = new Map((profileRows || []).map((p: { id: string; full_name: string | null; email: string | null }) => [p.id, p]))
 
-  // Filter out stale rankings (no profile or not an org member), aggregate best per player
   const playerBestRating = new Map<string, { rating: number | null; points: number | null; matches_played: number; wins: number; losses: number; player: { full_name: string | null; email: string | null } | null; category: { name: string } | null }>()
   for (const r of topRankings || []) {
     if (!memberSet.has(r.entity_id) || !profileMap.has(r.entity_id)) continue
@@ -192,7 +154,6 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
     }
   }
 
-  // Sort by rating/points and take top 5
   const topPlayers = [...playerBestRating.entries()]
     .sort(([, a], [, b]) => {
       const aVal = org.ranking_model === "elo" ? (a.rating ?? 0) : (a.points ?? 0)
@@ -206,27 +167,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
       ...data,
     }))
 
-  // ---- Recent matches (legacy + bracket, last 5) ----
-  const { data: recentLegacyMatches } = await admin
-    .from("matches")
-    .select(`
-      id,
-      status,
-      created_at,
-      scheduled_at,
-      winner_id,
-      player_a_id,
-      player_b_id,
-      player_a:profiles!player_a_id(full_name),
-      player_b:profiles!player_b_id(full_name),
-      tournament:tournaments(name),
-      category:categories(name)
-    `)
-    .eq("organization_id", org.id)
-    .order("created_at", { ascending: false })
-    .limit(5)
-
-  // Bracket matches: fetch last 5 with player info
+  // ---- Recent matches (bracket only, last 5) ----
   const recentBracketIds = orgBracketMatches
     .sort((a: { created_at: string }, b: { created_at: string }) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5)
@@ -271,7 +212,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
       .select("id, full_name")
       .in("id", [...playerIds])
 
-    const profileMap = new Map((playerProfiles || []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name]))
+    const profileNameMap = new Map((playerProfiles || []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name]))
 
     recentBracketMatches = (bmWithPlayers || []).map((bm: Record<string, unknown>) => ({
       id: bm.id as string,
@@ -281,14 +222,14 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
       winner_id: bm.winner_id as string | null,
       player_a_id: bm.player_a_id as string | null,
       player_b_id: bm.player_b_id as string | null,
-      player_a: bm.player_a_id ? { full_name: profileMap.get(bm.player_a_id as string) || null } : null,
-      player_b: bm.player_b_id ? { full_name: profileMap.get(bm.player_b_id as string) || null } : null,
+      player_a: bm.player_a_id ? { full_name: profileNameMap.get(bm.player_a_id as string) || null } : null,
+      player_b: bm.player_b_id ? { full_name: profileNameMap.get(bm.player_b_id as string) || null } : null,
       tournament: null,
       category: null,
     }))
   }
 
-  const allRecent = [...(recentLegacyMatches || []), ...recentBracketMatches]
+  const allRecent = recentBracketMatches
     .sort((a: { created_at: string }, b: { created_at: string }) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5)
 
@@ -300,17 +241,11 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
     .order("created_at", { ascending: false })
     .limit(8)
 
-  // ---- Monthly match data (both tables, last 6 months) ----
-  const { data: legacyMonthly } = await admin
-    .from("matches")
-    .select("created_at, status")
-    .eq("organization_id", org.id)
-    .eq("status", "completed")
-
+  // ---- Monthly match data (last 6 months) ----
   const bracketMonthly = orgBracketCompleted.map((m: { created_at: string }) => ({ created_at: m.created_at, status: "completed" }))
-  const monthlyData = processMonthlyData([...(legacyMonthly || []), ...bracketMonthly])
+  const monthlyData = processMonthlyData(bracketMonthly)
 
-  // ---- Category stats (matches per category from rankings) ----
+  // ---- Category stats (matches per category from bracket matches) ----
   const { data: categoryStats } = await admin
     .from("categories")
     .select(`
@@ -321,22 +256,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
     `)
     .eq("organization_id", org.id)
 
-  // Compute matches per category from both match tables
   const categoryMatchCounts = new Map<string, number>()
-
-  // From legacy matches
-  const { data: legacyCatMatches } = await admin
-    .from("matches")
-    .select("category_id")
-    .eq("organization_id", org.id)
-    .eq("status", "completed")
-
-  for (const m of legacyCatMatches || []) {
-    const catId = m.category_id
-    categoryMatchCounts.set(catId, (categoryMatchCounts.get(catId) || 0) + 1)
-  }
-
-  // From bracket matches
   for (const bm of orgBracketCompleted) {
     const catId = tcToCategoryId.get(bm.tournament_category_id)
     if (catId) {

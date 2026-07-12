@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { loadMatchesWithDetails } from "@/lib/matches";
 import { OrgPageClient } from "./org-page-client";
-import type { Match, Category, Profile, Ranking } from "@/lib/types";
+import type { BracketMatch, MatchGame, Category, Profile, Ranking } from "@/lib/types";
 
 export default async function OrgPage({
   params,
@@ -44,17 +43,11 @@ export default async function OrgPage({
     .in("status", ["published", "completed"])
     .order("start_date", { ascending: false });
 
-  const legacyMatches = await loadMatchesWithDetails(adminClient, {
-    organizationId: org.id,
-    orderBy: "scheduled_at",
-  });
-
   // Load bracket matches from published/completed tournaments
-  let bracketMatchesAsMatches: Match[] = [];
+  let allBracketMatches: OrgBracketMatch[] = [];
   if (tournamentsData && tournamentsData.length > 0) {
     const tournamentIds = tournamentsData.map((t: { id: string }) => t.id);
 
-    // Get tournament_categories for these tournaments
     const { data: tcs } = await adminClient
       .from("tournament_categories")
       .select("id, tournament_id, category_id")
@@ -71,7 +64,6 @@ export default async function OrgPage({
         .order("scheduled_at", { ascending: false });
 
       if (bm && bm.length > 0) {
-        // Fetch match_games
         const bmIds = bm.map((m: { id: string }) => m.id);
         const { data: games } = await adminClient
           .from("match_games")
@@ -85,7 +77,6 @@ export default async function OrgPage({
           gamesByMatchId.get(matchId)!.push(game);
         }
 
-        // Compute round labels
         const ROUND_LABELS: Record<number, string> = {
           1: "Final",
           2: "Semi-finals",
@@ -131,7 +122,6 @@ export default async function OrgPage({
           return "";
         }
 
-        // Fetch player profiles
         const playerIds = [...new Set(
           bm.flatMap((m: { player_a_id: string | null; player_b_id: string | null }) => [m.player_a_id, m.player_b_id]).filter(Boolean) as string[]
         )];
@@ -140,15 +130,13 @@ export default async function OrgPage({
           : { data: [] };
         const profileMap = new Map((profiles || []).map((p: Record<string, unknown>) => [p.id, p]));
 
-        // Fetch category names
         const catIds = [...new Set(tcs.map((tc: { category_id: string }) => tc.category_id))];
         const { data: cats } = catIds.length > 0
           ? await adminClient.from("categories").select("id, name, is_doubles").in("id", catIds)
           : { data: [] };
         const catMap = new Map((cats || []).map((c: Record<string, unknown>) => [c.id, c]));
 
-        // Convert bracket matches to Match format
-        bracketMatchesAsMatches = bm.map((m: Record<string, unknown>) => {
+        allBracketMatches = bm.map((m: Record<string, unknown>) => {
           const tcInfo = tcMap.get(m.tournament_category_id as string);
           return {
             id: m.id as string,
@@ -162,8 +150,6 @@ export default async function OrgPage({
             scheduled_at: m.scheduled_at as string | null,
             status: m.status as string,
             winner_id: m.winner_id as string | null,
-            reported_via: "manager" as const,
-            approval_status: "n/a" as const,
             created_at: (m.created_at as string) || new Date().toISOString(),
             tournament: tournamentsData.find((t: { id: string }) => t.id === tcInfo?.tournament_id) || null,
             category: catMap.get(tcInfo?.category_id || "") || null,
@@ -171,20 +157,19 @@ export default async function OrgPage({
             player_b: profileMap.get(m.player_b_id as string) || null,
             games: (gamesByMatchId.get(m.id as string) || []).map((g: Record<string, unknown>) => ({
               id: g.id as string,
-              match_id: null,
               bracket_match_id: g.bracket_match_id as string,
               game_number: g.game_number as number,
               score_a: g.score_a as number,
               score_b: g.score_b as number,
             })),
-          } as unknown as Match;
+          } as OrgBracketMatch;
         });
       }
     }
   }
 
-  // Merge legacy and bracket matches, sort by scheduled_at descending
-  const allMatches = [...(legacyMatches || []), ...bracketMatchesAsMatches]
+  // Sort by scheduled_at descending
+  const sortedMatches = allBracketMatches
     .sort((a, b) => {
       const dateA = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
       const dateB = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
@@ -203,24 +188,15 @@ export default async function OrgPage({
     : { data: [] };
   const rankingProfileMap = new Map((rankingProfiles || []).map((p: { id: string; full_name: string | null; email: string | null; platform_role: string | null; created_at: string }) => [p.id, p]));
 
-  // Verify org membership for data consistency
   const { data: orgMembers } = rankingProfileIds.length > 0
     ? await adminClient.from("org_members").select("profile_id").eq("organization_id", org.id).in("profile_id", rankingProfileIds)
     : { data: [] };
   const memberSet = new Set((orgMembers || []).map((m: { profile_id: string }) => m.profile_id));
 
-  // Compute match stats from completed matches
-  const { data: allLegacyMatches } = await adminClient
-    .from("matches")
-    .select("player_a_id, player_b_id, winner_id")
-    .eq("organization_id", org.id)
-    .eq("status", "completed")
-    .not("winner_id", "is", null)
-
+  // Compute match stats from completed bracket matches
   const { data: tcData2 } = await adminClient.from("tournament_categories").select("id, category_id")
-  const tcMap2 = new Map((tcData2 || []).map((tc: { id: string; category_id: string }) => [tc.id, tc.category_id]))
 
-  const { data: allBracketMatches } = await adminClient
+  const { data: allBracketMatches2 } = await adminClient
     .from("bracket_matches")
     .select("player_a_id, player_b_id, winner_id, tournament_category_id, is_bye")
     .in("status", ["completed", "walkover"])
@@ -234,15 +210,7 @@ export default async function OrgPage({
     matchStats.set(id, s)
   }
 
-  for (const m of allLegacyMatches || []) {
-    const r = m as { player_a_id: string; player_b_id: string; winner_id: string }
-    addStat(r.player_a_id, "played")
-    addStat(r.player_b_id, "played")
-    addStat(r.winner_id, "wins")
-    addStat(r.winner_id === r.player_a_id ? r.player_b_id : r.player_a_id, "losses")
-  }
-
-  for (const m of allBracketMatches || []) {
+  for (const m of allBracketMatches2 || []) {
     const r = m as { player_a_id: string | null; player_b_id: string | null; winner_id: string }
     if (r.player_a_id) addStat(r.player_a_id, "played")
     if (r.player_b_id) addStat(r.player_b_id, "played")
@@ -270,9 +238,30 @@ export default async function OrgPage({
       announcements={allAnnouncements || []}
       activeAnnouncements={activeAnnouncements}
       categories={categories || []}
-      matches={allMatches}
+      matches={sortedMatches}
       rankings={rankings || []}
       tournaments={tournamentsData || []}
     />
   );
+}
+
+// Local type for the enriched bracket match data passed to the client
+interface OrgBracketMatch {
+  id: string
+  organization_id: string
+  tournament_id: string
+  category_id: string
+  is_bye: boolean
+  round: string
+  player_a_id: string
+  player_b_id: string
+  scheduled_at: string | null
+  status: string
+  winner_id: string | null
+  created_at: string
+  tournament: { name: string; id: string } | null
+  category: { name: string; id: string; is_doubles: boolean } | null
+  player_a: Record<string, unknown> | null
+  player_b: Record<string, unknown> | null
+  games: MatchGame[]
 }

@@ -20,7 +20,6 @@ export async function GET(
   const categoryId = searchParams.get("categoryId");
 
   if (tournamentId) {
-    // Load bracket matches for this tournament
     const { data: tcs } = await adminClient
       .from("tournament_categories")
       .select("id")
@@ -33,7 +32,6 @@ export async function GET(
     let tcIds = tcs.map((tc: { id: string }) => tc.id);
 
     if (categoryId) {
-      // Filter to specific category
       const { data: specificTc } = await adminClient
         .from("tournament_categories")
         .select("id")
@@ -60,7 +58,6 @@ export async function GET(
 
     const matches = bracketMatches || [];
 
-    // Fetch match_games for all bracket matches
     const matchIds = matches.map((m: { id: string }) => m.id);
     let gamesByMatchId = new Map<string, unknown[]>();
     if (matchIds.length > 0) {
@@ -88,32 +85,5 @@ export async function GET(
     return NextResponse.json(matchesWithGames);
   }
 
-  // Fallback: no tournamentId — return empty
   return NextResponse.json([]);
-}
-
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ slug: string }> },
-) {
-  const { slug } = await params;
-  const adminClient = createAdminClient();
-  const body = await request.json();
-
-  const { data: org } = await adminClient
-    .from("organizations")
-    .select("id")
-    .eq("slug", slug)
-    .single();
-  if (!org) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  const { data, error } = await adminClient
-    .from("bracket_matches")
-    .insert({ ...body })
-    .select()
-    .single();
-
-  if (error)
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json(data);
 }

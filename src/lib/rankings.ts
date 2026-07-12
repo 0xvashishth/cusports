@@ -30,17 +30,7 @@ export async function recalculateCategory(
 ): Promise<{ updated: number; players: number }> {
   const ac = createAdminClient()
 
-  // 1. Fetch all completed legacy matches for this category
-  const { data: legacyMatches } = await ac
-    .from("matches")
-    .select("player_a_id, player_b_id, winner_id, created_at")
-    .eq("organization_id", orgId)
-    .eq("category_id", categoryId)
-    .eq("status", "completed")
-    .not("winner_id", "is", null)
-    .order("created_at", { ascending: true })
-
-  // 2. Fetch bracket matches via tournament_categories
+  // 1. Fetch completed bracket matches via tournament_categories
   const { data: tcData } = await ac
     .from("tournament_categories")
     .select("id")
@@ -59,26 +49,15 @@ export async function recalculateCategory(
     bracketMatches = (bm || []) as typeof bracketMatches
   }
 
-  // 3. Combine and sort chronologically
-  const events: MatchEvent[] = [
-    ...(legacyMatches || []).map((m) => ({
+  // 2. Build events from bracket matches
+  const events: MatchEvent[] = bracketMatches
+    .filter((m) => !m.is_bye && m.player_a_id && m.player_b_id)
+    .map((m) => ({
       player_a: m.player_a_id as string,
       player_b: m.player_b_id as string,
       winner: m.winner_id as string,
       created_at: m.created_at,
-    })),
-    ...bracketMatches
-      .filter((m) => !m.is_bye && m.player_a_id && m.player_b_id)
-      .map((m) => ({
-        player_a: m.player_a_id as string,
-        player_b: m.player_b_id as string,
-        winner: m.winner_id as string,
-        created_at: m.created_at,
-      })),
-  ].sort(
-    (a, b) =>
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  )
+    }))
 
   if (events.length === 0) {
     return { updated: 0, players: 0 }

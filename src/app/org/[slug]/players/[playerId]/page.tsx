@@ -8,6 +8,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatDate, cn } from "@/lib/utils"
 import { Trophy, TrendingUp, TrendingDown, Activity, Calendar } from "lucide-react"
 
+interface NormalizedMatch {
+  id: string
+  source: "legacy" | "bracket"
+  tournamentName: string | null
+  tournamentId: string | null
+  categoryName: string | null
+  opponentName: string
+  opponentId: string | null
+  won: boolean
+  status: string
+  round: string | null
+  date: string | null
+}
+
 export default async function PlayerProfilePage({ params }: { params: Promise<{ slug: string; playerId: string }> }) {
   const { slug, playerId } = await params
   const supabase = await createClient()
@@ -25,31 +39,95 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
     .eq("entity_id", playerId)
     .eq("entity_type", "player")
 
-  const { data: matches } = await supabase
-    .from("matches")
-    .select("*, tournament:tournaments(*), category:categories(*), player_a:profiles!player_a_id(*), player_b:profiles!player_b_id(*)")
-    .eq("organization_id", org.id)
-    .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
-    .order("created_at", { ascending: false })
-
-  // Also fetch bracket matches involving this player
+  // ── Bracket matches (bracket_matches table) ───────────────────────
   const { data: bracketMatches } = await supabase
     .from("bracket_matches")
-    .select("id, player_a_id, player_b_id, winner_id, status")
+    .select(`
+      id, player_a_id, player_b_id, winner_id, loser_id, status,
+      round_number, bracket_side, scheduled_at, created_at, is_bye,
+      tournament_category:tournament_categories(
+        id,
+        tournament:tournaments(id, name),
+        category:categories(id, name)
+      )
+    `)
     .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
 
-  const legacyWins = matches?.filter((m) => m.winner_id === playerId).length || 0
-  const legacyLosses = matches?.filter((m) => m.status === "completed" && m.winner_id !== playerId).length || 0
-  const bracketWins = bracketMatches?.filter((m) => m.status === "completed" && m.winner_id === playerId).length || 0
-  const bracketLosses = bracketMatches?.filter((m) => m.status === "completed" && m.winner_id !== playerId).length || 0
-  const wins = legacyWins + bracketWins
-  const losses = legacyLosses + bracketLosses
+  // Collect opponent IDs from bracket matches to fetch their names
+  const opponentIds = new Set<string>()
+  for (const bm of bracketMatches || []) {
+    const oppId = bm.player_a_id === playerId ? bm.player_b_id : bm.player_a_id
+    if (oppId) opponentIds.add(oppId)
+  }
+
+  let opponentMap = new Map<string, string>()
+  if (opponentIds.size > 0) {
+    const { data: opponentProfiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", Array.from(opponentIds))
+    if (opponentProfiles) {
+      for (const p of opponentProfiles) {
+        opponentMap.set(p.id, p.full_name || "Unknown")
+      }
+    }
+  }
+
+  // ── Normalize bracket matches ─────────────────────────────────────
+  const bracketNormalized: NormalizedMatch[] = (bracketMatches || [])
+    .filter((bm) => !bm.is_bye && (bm.status === "completed" || bm.status === "walkover"))
+    .map((bm) => {
+      const isPlayerA = bm.player_a_id === playerId
+      const oppId = isPlayerA ? bm.player_b_id : bm.player_a_id
+      const tcRaw = bm.tournament_category as unknown
+      const tc = Array.isArray(tcRaw) ? tcRaw[0] as Record<string, unknown> | undefined : tcRaw as Record<string, unknown> | null
+      const tournament = tc?.tournament as Record<string, unknown> | null
+      const category = tc?.category as Record<string, unknown> | null
+      const sideLabel = bm.bracket_side === "winners" ? "WB" : bm.bracket_side === "losers" ? "LB" : bm.bracket_side === "grand_final" ? "GF" : bm.bracket_side === "third_place" ? "3P" : ""
+      return {
+        id: bm.id,
+        source: "bracket",
+        tournamentName: (tournament?.name as string) || null,
+        tournamentId: (tournament?.id as string) || null,
+        categoryName: (category?.name as string) || null,
+        opponentName: oppId ? (opponentMap.get(oppId) || "Unknown") : "BYE",
+        opponentId: oppId || null,
+        won: bm.winner_id === playerId,
+        status: bm.status,
+        round: sideLabel ? `${sideLabel} R${bm.round_number}` : null,
+        date: bm.scheduled_at || bm.created_at,
+      }
+    })
+
+  // ── All matches (bracket only) ────────────────────────────────────
+  const allMatches = bracketNormalized
+    .sort((a, b) => {
+      if (!a.date) return 1
+      if (!b.date) return -1
+      return new Date(b.date).getTime() - new Date(a.date).getTime()
+    })
+
+  // ── Stats ─────────────────────────────────────────────────────────
+  const wins = allMatches.filter((m) => m.status === "completed" && m.won).length
+  const losses = allMatches.filter((m) => m.status === "completed" && !m.won).length
   const totalMatches = wins + losses
   const winRate = totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0
 
+  // ── Per-category W-L from actual matches (for rankings table) ─────
+  const categoryStats = new Map<string, { wins: number; losses: number; matches: number }>()
+  for (const m of allMatches) {
+    if (m.status !== "completed" || !m.categoryName) continue
+    const key = m.categoryName
+    const existing = categoryStats.get(key) || { wins: 0, losses: 0, matches: 0 }
+    existing.matches++
+    if (m.won) existing.wins++
+    else existing.losses++
+    categoryStats.set(key, existing)
+  }
+
   const initials = (profile.full_name || "?")
     .split(" ")
-    .map((n) => n[0])
+    .map((n: string) => n[0])
     .join("")
     .toUpperCase()
     .slice(0, 2)
@@ -116,22 +194,29 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rankings.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.category?.name || "Unknown"}</TableCell>
-                    <TableCell className="text-right tabular-nums font-semibold">
-                      {r.rating || r.points || 0}
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground tabular-nums">
-                      {r.matches_played}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <span className="text-green-600 dark:text-green-400 font-medium">{r.wins}</span>
-                      <span className="text-muted-foreground mx-1">-</span>
-                      <span className="text-red-600 dark:text-red-400 font-medium">{r.losses}</span>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {rankings.map((r) => {
+                  const catName = r.category?.name || "Unknown"
+                  const stats = categoryStats.get(catName)
+                  const rWins = stats?.wins ?? r.wins ?? 0
+                  const rLosses = stats?.losses ?? r.losses ?? 0
+                  const rMatches = stats?.matches ?? r.matches_played ?? 0
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-medium">{catName}</TableCell>
+                      <TableCell className="text-right tabular-nums font-semibold">
+                        {r.rating || r.points || 0}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground tabular-nums">
+                        {rMatches}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        <span className="text-green-600 dark:text-green-400 font-medium">{rWins}</span>
+                        <span className="text-muted-foreground mx-1">-</span>
+                        <span className="text-red-600 dark:text-red-400 font-medium">{rLosses}</span>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </CardContent>
@@ -146,65 +231,67 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {matches && matches.length > 0 ? (
+          {allMatches.length > 0 ? (
             <div className="space-y-3">
-              {matches.map((m) => {
-                const isPlayerA = m.player_a_id === playerId
-                const opponent = isPlayerA ? m.player_b : m.player_a
-                const won = m.winner_id === playerId
-                const isCompleted = m.status === "completed"
-                return (
-                  <div
-                    key={m.id}
-                    className={cn(
-                      "flex items-center justify-between p-4 rounded-lg border",
-                      isCompleted && won && "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20",
-                      isCompleted && !won && "border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20"
-                    )}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        {m.tournament && (
-                          <Link
-                            href={`/org/${slug}/tournaments/${m.tournament_id}`}
-                            className="text-sm text-muted-foreground hover:text-foreground truncate"
-                          >
-                            {m.tournament.name}
-                          </Link>
-                        )}
-                        {m.category && (
-                          <Badge variant="outline" className="text-xs flex-shrink-0">
-                            {m.category.name}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="font-medium truncate">
-                        {isPlayerA ? "vs" : "vs"}{" "}
+              {allMatches.map((m) => (
+                <div
+                  key={`${m.source}-${m.id}`}
+                  className={cn(
+                    "flex items-center justify-between p-4 rounded-lg border",
+                    m.status === "completed" && m.won && "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20",
+                    m.status === "completed" && !m.won && "border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20"
+                  )}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      {m.tournamentName && m.tournamentId && (
                         <Link
-                          href={`/org/${slug}/players/${opponent?.id || "#"}`}
-                          className="hover:underline"
+                          href={`/org/${slug}/tournaments/${m.tournamentId}`}
+                          className="text-sm text-muted-foreground hover:text-foreground truncate"
                         >
-                          {opponent?.full_name || "Unknown"}
+                          {m.tournamentName}
                         </Link>
-                        {isCompleted && won && <span className="ml-1">{"\uD83D\uDC51"}</span>}
-                      </p>
-                      {m.round && <p className="text-xs text-muted-foreground">{m.round}</p>}
-                    </div>
-                    <div className="text-right flex-shrink-0 ml-4">
-                      {isCompleted ? (
-                        <Badge variant={won ? "success" : "destructive"}>
-                          {won ? "Won" : "Lost"}
-                        </Badge>
-                      ) : (
-                        <Badge variant={m.status === "ongoing" ? "warning" : "secondary"}>
-                          {m.status}
+                      )}
+                      {m.categoryName && (
+                        <Badge variant="outline" className="text-xs flex-shrink-0">
+                          {m.categoryName}
                         </Badge>
                       )}
-                      <p className="text-xs text-muted-foreground mt-1">{formatDate(m.created_at)}</p>
+                      {m.round && (
+                        <span className="text-xs text-muted-foreground/70">{m.round}</span>
+                      )}
                     </div>
+                    <p className="font-medium truncate">
+                      vs{" "}
+                      {m.opponentId ? (
+                        <Link
+                          href={`/org/${slug}/players/${m.opponentId}`}
+                          className="hover:underline"
+                        >
+                          {m.opponentName}
+                        </Link>
+                      ) : (
+                        <span>{m.opponentName}</span>
+                      )}
+                      {m.status === "completed" && m.won && <span className="ml-1">{"\uD83D\uDC51"}</span>}
+                    </p>
                   </div>
-                )
-              })}
+                  <div className="text-right flex-shrink-0 ml-4">
+                    {m.status === "completed" ? (
+                      <Badge variant={m.won ? "success" : "destructive"}>
+                        {m.won ? "Won" : "Lost"}
+                      </Badge>
+                    ) : (
+                      <Badge variant={m.status === "ongoing" ? "warning" : "secondary"}>
+                        {m.status}
+                      </Badge>
+                    )}
+                    {m.date && (
+                      <p className="text-xs text-muted-foreground mt-1">{formatDate(m.date)}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">

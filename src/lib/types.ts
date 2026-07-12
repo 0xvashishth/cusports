@@ -2,8 +2,6 @@ export type PlatformRole = "admin" | "manager" | "player"
 export type OrgRole = "manager" | "player"
 export type MemberStatus = "invited" | "active"
 export type MatchStatus = "pending" | "scheduled" | "ongoing" | "completed" | "walkover" | "cancelled"
-export type ApprovalStatus = "n/a" | "pending" | "approved"
-export type ReportedVia = "manager" | "slack" | "player"
 export type TournamentStatus = "draft" | "published" | "completed"
 export type RankingModel = "elo" | "points"
 export type EntityType = "player" | "pair"
@@ -144,31 +142,8 @@ export interface BracketMatch {
   games?: MatchGame[]
 }
 
-export interface Match {
-  id: string
-  organization_id: string
-  tournament_id: string
-  category_id: string
-  round: string | null
-  player_a_id: string
-  player_b_id: string
-  is_bye: boolean
-  scheduled_at: string | null
-  status: MatchStatus
-  winner_id: string | null
-  reported_via: ReportedVia
-  approval_status: ApprovalStatus
-  created_at: string
-  tournament?: Tournament
-  category?: Category
-  player_a?: Profile
-  player_b?: Profile
-  games?: MatchGame[]
-}
-
 export interface MatchGame {
   id: string
-  match_id: string | null
   bracket_match_id: string | null
   game_number: number
   score_a: number

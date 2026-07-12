@@ -25,9 +25,9 @@ import type {
   Organization,
   Announcement,
   Category,
-  Match,
   Ranking,
   Tournament,
+  MatchGame,
 } from "@/lib/types";
 import {
   Trophy,
@@ -41,12 +41,33 @@ import {
   MapPin,
 } from "lucide-react";
 
+// Enriched bracket match shape passed from the server
+interface OrgMatch {
+  id: string
+  organization_id: string
+  tournament_id: string
+  category_id: string
+  is_bye: boolean
+  round: string
+  player_a_id: string
+  player_b_id: string
+  scheduled_at: string | null
+  status: string
+  winner_id: string | null
+  created_at: string
+  tournament: { name: string; id: string } | null
+  category: { name: string; id: string; is_doubles: boolean } | null
+  player_a: { full_name: string | null; email: string | null; id?: string } | null
+  player_b: { full_name: string | null; email: string | null; id?: string } | null
+  games: MatchGame[]
+}
+
 interface OrgPageClientProps {
   org: Organization;
   announcements: Announcement[];
   activeAnnouncements: Announcement[];
   categories: Category[];
-  matches: Match[];
+  matches: OrgMatch[];
   rankings: Ranking[];
   tournaments: Tournament[];
 }
@@ -108,9 +129,9 @@ function OrgPageContent({
   announcements: Announcement[];
   activeAnnouncements: Announcement[];
   categories: Category[];
-  ongoingMatches: Match[];
-  upcomingMatches: Match[];
-  pastMatches: Match[];
+  ongoingMatches: OrgMatch[];
+  upcomingMatches: OrgMatch[];
+  pastMatches: OrgMatch[];
   rankings: Ranking[];
   tournaments: Tournament[];
 }) {
@@ -119,12 +140,12 @@ function OrgPageContent({
     tournaments.map((tournament) => [tournament.id, tournament.name]),
   );
 
-  const groupMatchesByTournament = (matchesToGroup: Match[]) =>
+  const groupMatchesByTournament = (matchesToGroup: OrgMatch[]) =>
     Object.values(
       matchesToGroup.reduce<
         Record<
           string,
-          { tournamentId: string; tournamentName: string; matches: Match[] }
+          { tournamentId: string; tournamentName: string; matches: OrgMatch[] }
         >
       >((acc, match) => {
         const tournamentId = match.tournament_id || "unknown";
@@ -677,7 +698,7 @@ function OrgPageContent({
   );
 }
 
-function MatchCard({ match, slug }: { match: Match; slug: string }) {
+function MatchCard({ match, slug }: { match: OrgMatch; slug: string }) {
   const completed = match.status === "completed";
   const isBye = match.is_bye;
   const sortedGames =

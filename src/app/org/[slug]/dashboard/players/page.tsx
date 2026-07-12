@@ -33,62 +33,93 @@ export default async function PlayersPage({ params }: { params: Promise<{ slug: 
     categoryNames.set(cat.id, cat.name)
   }
 
-  // Compute match stats directly from matches and bracket_matches
-  const { data: allMatches } = await adminClient
-    .from("matches")
-    .select("player_a_id, player_b_id, winner_id")
+  // ── Get tournament_ids for this org ──────────────────────────────
+  const { data: orgTournaments } = await adminClient
+    .from("tournaments")
+    .select("id")
     .eq("organization_id", org.id)
-    .eq("status", "completed")
-    .not("winner_id", "is", null)
+  const orgTournamentIds = new Set((orgTournaments || []).map((t: { id: string }) => t.id))
 
-  const { data: tcData } = await adminClient.from("tournament_categories").select("id, category_id")
-  const tcMap = new Map((tcData || []).map((tc: { id: string; category_id: string }) => [tc.id, tc.category_id]))
+  // ── Get tournament_category → category mapping for this org ──────
+  const { data: tcRows } = await adminClient
+    .from("tournament_categories")
+    .select("id, tournament_id, category_id")
+  const orgTcRows = (tcRows || []).filter((tc: { tournament_id: string }) =>
+    orgTournamentIds.has(tc.tournament_id)
+  )
+  const tcToCategoryId = new Map(orgTcRows.map((tc: { id: string; category_id: string }) => [tc.id, tc.category_id]))
+  const orgTcIds = orgTcRows.map((tc: { id: string }) => tc.id)
 
-  const { data: allBracketMatches } = await adminClient
-    .from("bracket_matches")
-    .select("player_a_id, player_b_id, winner_id")
-    .in("status", ["completed", "walkover"])
-    .not("winner_id", "is", null)
+  // ── Compute per-category W-L from bracket_matches ────────────────
+  const perCategoryStats = new Map<string, Map<string, { played: number; wins: number; losses: number }>>()
 
-  const matchStats = new Map<string, { played: number; wins: number; losses: number }>()
-  function addStat(id: string, field: "played" | "wins" | "losses") {
-    const s = matchStats.get(id) || { played: 0, wins: 0, losses: 0 }
-    s[field]++
-    matchStats.set(id, s)
+  if (orgTcIds.length > 0) {
+    const { data: allBracketMatches } = await adminClient
+      .from("bracket_matches")
+      .select("player_a_id, player_b_id, winner_id, tournament_category_id, is_bye, status")
+      .in("tournament_category_id", orgTcIds)
+      .in("status", ["completed", "walkover"])
+      .not("winner_id", "is", null)
+
+    for (const m of allBracketMatches || []) {
+      const r = m as {
+        player_a_id: string | null; player_b_id: string | null;
+        winner_id: string; tournament_category_id: string; is_bye: boolean; status: string
+      }
+      if (r.is_bye) continue
+
+      const catId = tcToCategoryId.get(r.tournament_category_id)
+      if (!catId) continue
+
+      if (!perCategoryStats.has(catId)) {
+        perCategoryStats.set(catId, new Map())
+      }
+      const catMap = perCategoryStats.get(catId)!
+
+      function addStat(id: string, field: "played" | "wins" | "losses") {
+        const s = catMap.get(id) || { played: 0, wins: 0, losses: 0 }
+        s[field]++
+        catMap.set(id, s)
+      }
+
+      if (r.player_a_id) addStat(r.player_a_id, "played")
+      if (r.player_b_id) addStat(r.player_b_id, "played")
+      addStat(r.winner_id, "wins")
+      const loserId = r.winner_id === r.player_a_id ? r.player_b_id : r.player_a_id
+      if (loserId) addStat(loserId, "losses")
+    }
   }
 
-  for (const m of allMatches || []) {
-    const r = m as { player_a_id: string; player_b_id: string; winner_id: string }
-    addStat(r.player_a_id, "played")
-    addStat(r.player_b_id, "played")
-    addStat(r.winner_id, "wins")
-    addStat(r.winner_id === r.player_a_id ? r.player_b_id : r.player_a_id, "losses")
+  // ── Also compute overall totals for summary display ───────────────
+  const overallStats = new Map<string, { played: number; wins: number; losses: number }>()
+  for (const [, catMap] of perCategoryStats) {
+    for (const [entityId, stat] of catMap) {
+      const existing = overallStats.get(entityId) || { played: 0, wins: 0, losses: 0 }
+      existing.played += stat.played
+      existing.wins += stat.wins
+      existing.losses += stat.losses
+      overallStats.set(entityId, existing)
+    }
   }
 
-  for (const m of allBracketMatches || []) {
-    const r = m as { player_a_id: string | null; player_b_id: string | null; winner_id: string }
-    if (r.player_a_id) addStat(r.player_a_id, "played")
-    if (r.player_b_id) addStat(r.player_b_id, "played")
-    addStat(r.winner_id, "wins")
-    const loserId = r.winner_id === r.player_a_id ? r.player_b_id : r.player_a_id
-    if (loserId) addStat(loserId, "losses")
-  }
-
-  const rankingsWithCategory = (rankings || []).map((r) => ({
-    ...r,
-    category_name: categoryNames.get(r.category_id) || "Unknown",
-    // Override with computed stats
-    matches_played: matchStats.get(r.entity_id)?.played ?? r.matches_played,
-    wins: matchStats.get(r.entity_id)?.wins ?? r.wins,
-    losses: matchStats.get(r.entity_id)?.losses ?? r.losses,
-  }))
+  const rankingsWithStats = (rankings || []).map((r) => {
+    const catStats = perCategoryStats.get(r.category_id)?.get(r.entity_id)
+    return {
+      ...r,
+      category_name: categoryNames.get(r.category_id) || "Unknown",
+      // Per-category stats
+      matches_played: catStats?.played ?? r.matches_played,
+      wins: catStats?.wins ?? r.wins,
+      losses: catStats?.losses ?? r.losses,
+    }
+  })
 
   return (
     <DashboardLayout organization={org}>
       <PlayersClient
         org={org}
         members={members || []}
-        rankings={rankingsWithCategory}
+        rankings={rankingsWithStats}
         categories={categories || []}
       />
     </DashboardLayout>
