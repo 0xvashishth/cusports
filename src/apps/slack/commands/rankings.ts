@@ -64,7 +64,7 @@ export async function handleRankings(orgId: string): Promise<SlackCommandResult>
     for (let i = 0; i < sorted.length; i++) {
       const r = sorted[i]
       const name = profileMap.get(r.entity_id) || "Unknown"
-      const medal = i === 0 ? " :gold:" : i === 1 ? " :silver:" : i === 2 ? " :third_place_medal:" : ""
+      const medal = i === 0 ? " 🥇" : i === 1 ? " 🥈" : i === 2 ? " 🥉" : ""
       const rating = r.rating != null ? Math.round(Number(r.rating)) : "-"
       const wl = `${r.wins || 0}W-${r.losses || 0}L`
       lines.push(`  ${i + 1}. ${name}${medal} — ${rating} (${wl})`)

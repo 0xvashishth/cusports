@@ -255,10 +255,10 @@ export async function notifyTournamentCompleted(
   const winnersText = winners.length > 0
     ? winners.map((w) => {
         const lines = [`*${w.categoryName}*`]
-        if (w.winnerName !== "TBD") lines.push(`  :gold: 1st: ${w.winnerName}`)
+        if (w.winnerName !== "TBD") lines.push(`  🥇 1st: ${w.winnerName}`)
         else lines.push(`  1st: TBD`)
-        if (w.runnerUpName) lines.push(`  :silver: 2nd: ${w.runnerUpName}`)
-        if (w.thirdPlaceName) lines.push(`  :third_place_medal: 3rd: ${w.thirdPlaceName}`)
+        if (w.runnerUpName) lines.push(`  🥈 2nd: ${w.runnerUpName}`)
+        if (w.thirdPlaceName) lines.push(`  🥉 3rd: ${w.thirdPlaceName}`)
         return lines.join("\n")
       }).join("\n\n")
     : "No results recorded."
