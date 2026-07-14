@@ -49,12 +49,16 @@ export async function handlePlayerReport(
     return { success: false, replyMessage: editCheck.error || "Match cannot be edited" }
   }
 
+  const dbGames = match.playerAId === reporter.id
+    ? games
+    : games.map((g) => ({ score_a: g.score_b, score_b: g.score_a }))
+
   console.log("[Slack Report] Advancing match:", { matchId: match.matchId, winnerId: scoreValidation.winnerId, loserId: scoreValidation.loserId })
   const result = await advanceMatch({
     bracketMatchId: match.matchId,
     winnerId: scoreValidation.winnerId!,
     loserId: scoreValidation.loserId!,
-    games,
+    games: dbGames,
     reportedVia: "slack",
   })
 
