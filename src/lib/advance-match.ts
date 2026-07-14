@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { DEFAULT_ELO_CONFIG } from "@/lib/elo"
 import type { EloConfig } from "@/lib/elo"
 import { applyMatchResult, recalculateCategory } from "@/lib/rankings"
-import { notifyTournamentCompleted, type CategoryWinner } from "@/apps/slack/notifications/tournament"
+
 
 interface AdvanceMatchInput {
   bracketMatchId: string
@@ -332,90 +332,6 @@ async function checkAndCompleteTournament(ac: ReturnType<typeof createAdminClien
       .from("tournaments")
       .update({ status: "completed" })
       .eq("id", tournamentId)
-
-    // Fetch tournament details and org slug for Slack notification
-    const { data: tournament } = await ac
-      .from("tournaments")
-      .select("*, organization:organizations(slug)")
-      .eq("id", tournamentId)
-      .single()
-
-    if (tournament) {
-      const org = tournament.organization as unknown as { slug: string } | null
-      if (org?.slug) {
-        // Fetch winners for each category
-        const { data: fullTcs } = await ac
-          .from("tournament_categories")
-          .select("id, category:categories(name)")
-          .eq("tournament_id", tournamentId)
-
-        const winners: CategoryWinner[] = []
-        for (const tc of fullTcs || []) {
-          const tcData = tc as Record<string, unknown>
-          const categoryName = ((tcData.category as Record<string, unknown>)?.name as string) || "Unknown"
-          const tcId = tcData.id as string
-
-          const { data: finalMatch } = await ac
-            .from("bracket_matches")
-            .select("winner_id, player_a_id, player_b_id")
-            .eq("tournament_category_id", tcId)
-            .in("status", ["completed", "walkover"])
-            .is("winner_next_match_id", null)
-            .maybeSingle()
-
-          if (!finalMatch?.winner_id) {
-            winners.push({ categoryName, winnerName: "TBD", runnerUpName: null, thirdPlaceName: null })
-            continue
-          }
-
-          const { data: winnerProfile } = await ac
-            .from("profiles")
-            .select("full_name")
-            .eq("id", finalMatch.winner_id)
-            .single()
-
-          const winnerName = winnerProfile?.full_name || "Unknown"
-          const loserId = finalMatch.winner_id === finalMatch.player_a_id
-            ? finalMatch.player_b_id
-            : finalMatch.player_a_id
-
-          let runnerUpName: string | null = null
-          if (loserId) {
-            const { data: runnerUpProfile } = await ac
-              .from("profiles")
-              .select("full_name")
-              .eq("id", loserId)
-              .single()
-            runnerUpName = runnerUpProfile?.full_name || null
-          }
-
-          let thirdPlaceName: string | null = null
-          const { data: thirdPlaceMatch } = await ac
-            .from("bracket_matches")
-            .select("winner_id")
-            .eq("tournament_category_id", tcId)
-            .eq("bracket_side", "third_place")
-            .in("status", ["completed", "walkover"])
-            .maybeSingle()
-
-          if (thirdPlaceMatch?.winner_id) {
-            const { data: thirdProfile } = await ac
-              .from("profiles")
-              .select("full_name")
-              .eq("id", thirdPlaceMatch.winner_id)
-              .single()
-            thirdPlaceName = thirdProfile?.full_name || null
-          }
-
-          winners.push({ categoryName, winnerName, runnerUpName, thirdPlaceName })
-        }
-
-        console.log("[Advance Match] Sending completion notification for:", tournament.name)
-        notifyTournamentCompleted(tournament.organization_id, org.slug, tournament, winners).catch((err) => {
-          console.error("[Advance Match] Failed to send completion notification:", err)
-        })
-      }
-    }
   }
 }
 

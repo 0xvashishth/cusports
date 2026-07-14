@@ -51,6 +51,7 @@ import {
   UserPlus,
   X,
   RotateCcw,
+  Bell,
 } from "lucide-react";
 
 interface TournamentDetailClientProps {
@@ -111,6 +112,7 @@ export function TournamentDetailClient({
   const [regenConfirmOpen, setRegenConfirmOpen] = useState(false);
   const [regenCategoryId, setRegenCategoryId] = useState<string | null>(null);
   const [advancingRound, setAdvancingRound] = useState<string | null>(null);
+  const [notifying, setNotifying] = useState(false);
 
   const fetchData = useCallback(async () => {
     const [entriesRes, bracketRes] = await Promise.all([
@@ -302,6 +304,22 @@ export function TournamentDetailClient({
 
     setPublishing(false);
     router.refresh();
+  }
+
+  async function notifyCompletion() {
+    setNotifying(true);
+    setError(null);
+
+    const res = await fetch(
+      `/api/org/${org.slug}/tournaments/${tournament.id}/notify-completion`,
+      { method: "POST" },
+    );
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      setError(data.error || "Failed to send notification");
+    }
+    setNotifying(false);
   }
 
   const safeEntries = entries ?? [];
@@ -740,6 +758,37 @@ export function TournamentDetailClient({
                     )}
                     {publishing ? "Publishing..." : "Publish Tournament"}
                   </Button>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Bell className="h-5 w-5 text-primary" />
+                  Notify Completion
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Send a Slack notification with the tournament results and category winners.
+                </p>
+                <Button
+                  onClick={notifyCompletion}
+                  disabled={notifying || tournament.status !== "completed"}
+                  className="w-full gap-2"
+                >
+                  {notifying ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Bell className="h-4 w-4" />
+                  )}
+                  {notifying ? "Sending..." : "Notify Completion"}
+                </Button>
+                {tournament.status !== "completed" && (
+                  <p className="text-xs text-muted-foreground">
+                    Available once the tournament is completed.
+                  </p>
                 )}
               </CardContent>
             </Card>
