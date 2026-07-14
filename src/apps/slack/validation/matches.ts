@@ -141,18 +141,11 @@ export function validateScores(
     }
   }
 
-  const gameWins = { a: 0, b: 0 }
-  for (const game of games) {
-    if (game.score_a > game.score_b) gameWins.a++
-    else gameWins.b++
-  }
-
-  const isReporterA = match.playerAId === reporterId
-  const reporterWins = isReporterA ? gameWins.a : gameWins.b
-  const opponentWins = isReporterA ? gameWins.b : gameWins.a
+  const reporterWins = games.filter((g) => g.score_a > g.score_b).length
+  const opponentWins = games.filter((g) => g.score_b > g.score_a).length
 
   if (reporterWins === opponentWins) {
-    return { valid: false, error: "The match is tied — one player must win more games", gameWins }
+    return { valid: false, error: "The match is tied — one player must win more games", gameWins: { a: reporterWins, b: opponentWins } }
   }
 
   const winnerId = reporterWins > opponentWins ? reporterId : opponentId
@@ -162,7 +155,7 @@ export function validateScores(
     valid: true,
     winnerId,
     loserId,
-    gameWins,
+    gameWins: { a: reporterWins, b: opponentWins },
   }
   console.log("[Slack Matches] Score validation result:", result)
   return result

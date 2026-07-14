@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollableTabsList } from "@/components/ui/scrollable-tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -93,6 +94,7 @@ export function OrgPageClient({
   const upcomingMatches = matches.filter((m) => {
     if (m.status === "completed" || m.status === "cancelled") return false;
     if (m.status === "ongoing") return false;
+    if (!m.player_a || !m.player_b) return false;
     return true;
   });
   const pastMatches = matches.filter((m) => m.status === "completed");
@@ -295,7 +297,7 @@ function OrgPageContent({
 
       <div className="container mx-auto px-4 py-8 space-y-8">
         <Tabs defaultValue="matches">
-          <TabsList className="w-full">
+          <ScrollableTabsList className="w-full">
             <TabsTrigger value="matches" className="flex items-center gap-2">
               <Play className="w-4 h-4" />
               Matches
@@ -320,7 +322,7 @@ function OrgPageContent({
                 Announcements
               </TabsTrigger>
             )}
-          </TabsList>
+          </ScrollableTabsList>
 
           <TabsContent value="matches" className="space-y-8">
             {ongoingMatches.length > 0 && (
@@ -424,153 +426,104 @@ function OrgPageContent({
           </TabsContent>
 
           <TabsContent value="rankings" className="space-y-8 pt-4">
-            {categories.length === 0 ? (
-              <EmptyState
-                icon={Medal}
-                title="No rankings configured"
-                description="Rankings will appear once categories are set up."
-              />
-            ) : (
-              <Tabs
-                defaultValue={(() => {
-                  const mixedIdx = categories.findIndex(
-                    (c) => c.name === "Mixed Singles",
-                  );
-                  return mixedIdx >= 0
-                    ? categories[mixedIdx].id
-                    : categories[0]?.id;
-                })()}
-              >
-                <TabsList className="mb-4 flex-wrap">
-                  {[...categories]
-                    .sort((a, b) => {
-                      if (a.name === "Mixed Singles") return -1;
-                      if (b.name === "Mixed Singles") return 1;
-                      return 0;
-                    })
-                    .map((cat) => (
-                      <TabsTrigger key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </TabsTrigger>
-                    ))}
-                </TabsList>
-                {categories.map((cat) => {
-                  const isMixed =
-                    cat.name === "Mixed Doubles" ||
-                    cat.name === "Mixed Singles";
-                  const catRankings = isMixed
-                    ? (() => {
-                        const singlesCatIds = categories
-                          .filter((c) => !c.is_doubles)
-                          .map((c) => c.id);
-                        const bestByPlayer = new Map<string, Ranking>();
-                        for (const r of rankings.filter((r) =>
-                          singlesCatIds.includes(r.category_id),
-                        )) {
-                          const existing = bestByPlayer.get(r.entity_id);
-                          const myRating = r.rating || r.points || 0;
-                          if (
-                            !existing ||
-                            (existing.rating || existing.points || 0) < myRating
-                          ) {
-                            bestByPlayer.set(r.entity_id, r);
-                          }
-                        }
-                        return [...bestByPlayer.values()].sort(
-                          (a, b) =>
-                            (b.rating || b.points || 0) -
-                            (a.rating || a.points || 0),
-                        );
-                      })()
-                    : rankings
-                        .filter((r) => r.category_id === cat.id)
-                        .sort(
-                          (a, b) =>
-                            (b.rating || b.points || 0) -
-                            (a.rating || a.points || 0),
-                        );
-                  return (
-                    <TabsContent key={cat.id} value={cat.id}>
-                      {catRankings.length === 0 ? (
-                        <EmptyState
-                          icon={Medal}
-                          title="No rankings yet"
-                          description="Players need to complete matches to appear here."
-                        />
-                      ) : (
-                        <Card>
-                          <CardContent className="p-0">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="w-12">#</TableHead>
-                                  <TableHead>Player</TableHead>
-                                  <TableHead className="text-right">
-                                    Rating
-                                  </TableHead>
-                                  <TableHead className="text-right">
-                                    Played
-                                  </TableHead>
-                                  <TableHead className="text-right">
-                                    W-L
-                                  </TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {catRankings.map((r, i) => (
-                                  <TableRow key={r.id}>
-                                    <TableCell className="font-mono text-sm text-muted-foreground">
-                                      {getRankDisplay(i)}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Link
-                                        href={`/org/${org.slug}/players/${r.entity_id}`}
-                                        className="flex items-center gap-3 hover:underline"
-                                      >
-                                        <Avatar className="h-8 w-8">
-                                          <AvatarFallback className="text-xs">
-                                            {(r.player?.full_name || "?")
-                                              .split(" ")
-                                              .map((n) => n[0])
-                                              .join("")
-                                              .toUpperCase()
-                                              .slice(0, 2)}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <span className="font-medium">
-                                          {r.player?.full_name || "Unknown"}
-                                        </span>
-                                      </Link>
-                                    </TableCell>
-                                    <TableCell className="text-right font-semibold tabular-nums">
-                                      {r.rating || r.points || 0}
-                                    </TableCell>
-                                    <TableCell className="text-right text-muted-foreground tabular-nums">
-                                      {r.matches_played}
-                                    </TableCell>
-                                    <TableCell className="text-right tabular-nums">
-                                      <span className="text-green-600 dark:text-green-400 font-medium">
-                                        {r.wins}
-                                      </span>
-                                      <span className="text-muted-foreground mx-1">
-                                        -
-                                      </span>
-                                      <span className="text-red-600 dark:text-red-400 font-medium">
-                                        {r.losses}
-                                      </span>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </TabsContent>
-                  );
-                })}
-              </Tabs>
-            )}
+            {(() => {
+              const bestByPlayer = new Map<string, Ranking>();
+              for (const r of rankings) {
+                const existing = bestByPlayer.get(r.entity_id);
+                const myRating = r.rating || r.points || 0;
+                if (
+                  !existing ||
+                  (existing.rating || existing.points || 0) < myRating
+                ) {
+                  bestByPlayer.set(r.entity_id, r);
+                }
+              }
+              const overallRankings = [...bestByPlayer.values()].sort(
+                (a, b) =>
+                  (b.rating || b.points || 0) -
+                  (a.rating || a.points || 0),
+              );
+
+              if (overallRankings.length === 0) {
+                return (
+                  <EmptyState
+                    icon={Medal}
+                    title="No rankings yet"
+                    description="Players need to complete matches to appear here."
+                  />
+                );
+              }
+
+              return (
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">#</TableHead>
+                          <TableHead>Player</TableHead>
+                          <TableHead className="text-right">
+                            Rating
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Played
+                          </TableHead>
+                          <TableHead className="text-right">
+                            W-L
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {overallRankings.map((r, i) => (
+                          <TableRow key={r.id}>
+                            <TableCell className="font-mono text-sm text-muted-foreground">
+                              {getRankDisplay(i)}
+                            </TableCell>
+                            <TableCell>
+                              <Link
+                                href={`/org/${org.slug}/players/${r.entity_id}`}
+                                className="flex items-center gap-3 hover:underline"
+                              >
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback className="text-xs">
+                                    {(r.player?.full_name || "?")
+                                      .split(" ")
+                                      .map((n) => n[0])
+                                      .join("")
+                                      .toUpperCase()
+                                      .slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="font-medium">
+                                  {r.player?.full_name || "Unknown"}
+                                </span>
+                              </Link>
+                            </TableCell>
+                            <TableCell className="text-right font-semibold tabular-nums">
+                              {r.rating || r.points || 0}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground tabular-nums">
+                              {r.matches_played}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              <span className="text-green-600 dark:text-green-400 font-medium">
+                                {r.wins}
+                              </span>
+                              <span className="text-muted-foreground mx-1">
+                                -
+                              </span>
+                              <span className="text-red-600 dark:text-red-400 font-medium">
+                                {r.losses}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </TabsContent>
 
           <TabsContent value="tournaments" className="space-y-8 pt-4">
