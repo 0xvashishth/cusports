@@ -58,7 +58,8 @@ CREATE TABLE public.rankings (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT rankings_pkey PRIMARY KEY (id),
   CONSTRAINT rankings_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
-  CONSTRAINT rankings_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
+  CONSTRAINT rankings_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
+  CONSTRAINT rankings_entity_id_fkey FOREIGN KEY (entity_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.tournaments (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
