@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { notifyTournamentPublished } from "@/apps/slack/notifications/tournament"
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params
@@ -35,8 +34,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   const body = await request.json()
   console.log("[Tournament PATCH] Update body:", body)
 
-  const isPublishing = body.status === "published"
-
   const { error: updateError } = await adminClient
     .from("tournaments")
     .update(body)
@@ -49,31 +46,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   }
 
   console.log("[Tournament PATCH] Tournament updated successfully")
-
-  if (isPublishing) {
-    console.log("[Tournament PATCH] Tournament published, fetching details for Slack notification")
-    const { data: tournament } = await adminClient
-      .from("tournaments")
-      .select("*")
-      .eq("id", id)
-      .single()
-
-    const { data: tournamentCategories } = await adminClient
-      .from("tournament_categories")
-      .select("category:categories(id, name, is_doubles, organization_id)")
-      .eq("tournament_id", id)
-
-    const categories = (tournamentCategories || [])
-      .map((tc) => (tc as Record<string, unknown>).category)
-      .filter(Boolean) as { id: string; name: string; is_doubles: boolean; organization_id: string }[]
-
-    if (tournament) {
-      console.log("[Tournament PATCH] Sending publish notification for:", tournament.name)
-      notifyTournamentPublished(org.id, slug, tournament, categories).catch((err) => {
-        console.error("[Tournament PATCH] Failed to send publish notification:", err)
-      })
-    }
-  }
 
   return NextResponse.json({ success: true })
 }

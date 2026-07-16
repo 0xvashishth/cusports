@@ -305,7 +305,15 @@ export function SlackIntegrationClient({ org, integration }: SlackIntegrationCli
                   <pre className="bg-muted p-2 rounded mt-1 text-xs break-all">
                     {process.env.NEXT_PUBLIC_SITE_URL || "https://your-app.vercel.app"}/api/slack/events
                   </pre>
-                  <p className="mt-2">Under <strong>Subscribe to bot events</strong>, add <code className="bg-muted px-1.5 py-0.5 rounded text-xs">app_mention</code>.</p>
+                  <p className="mt-2">Under <strong>Subscribe to bot events</strong>, add:</p>
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">app_mention</code></li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">reaction_added</code></li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">reaction_removed</code></li>
+                  </ul>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    <code>reaction_added</code> and <code>reaction_removed</code> are required for tournament registration via reactions.
+                  </p>
                 </div>
               ),
             },

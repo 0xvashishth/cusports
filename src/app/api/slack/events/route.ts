@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { lookupOrgBySlackTeam, isChannelAllowed, getSlackBotToken, addReaction, postToSlackChannelById } from "@/apps/slack/client"
 import { routeCommand } from "@/apps/slack/commands/router"
+import { handleReactionAdded, handleReactionRemoved } from "@/apps/slack/notifications/tournament-reactions"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function POST(request: Request) {
@@ -13,7 +14,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ challenge: body.challenge })
   }
 
-  if (body.event?.type === "app_mention") {
+  const eventType = body.event?.type
+
+  if (eventType === "reaction_added" || eventType === "reaction_removed") {
+    const teamId = body.team_id as string
+    const { reaction, user, item } = body.event
+    const messageTs = item?.ts
+    const channel = item?.channel
+
+    console.log("[Slack Events] Reaction event:", { eventType, reaction, user, messageTs, channel, teamId })
+
+    const orgInfo = await lookupOrgBySlackTeam(teamId)
+    if (!orgInfo) {
+      console.log("[Slack Events] No org found for team_id:", teamId)
+      return NextResponse.json({ ok: true })
+    }
+
+    const botToken = await getSlackBotToken(orgInfo.orgId)
+    if (!botToken) {
+      console.log("[Slack Events] No bot token configured for org:", orgInfo.orgId)
+      return NextResponse.json({ ok: true })
+    }
+
+    if (eventType === "reaction_added") {
+      await handleReactionAdded(orgInfo.orgId, orgInfo.orgSlug, user, reaction, messageTs, botToken)
+    } else {
+      await handleReactionRemoved(orgInfo.orgId, user, reaction, messageTs, botToken)
+    }
+
+    return NextResponse.json({ ok: true })
+  }
+
+  if (eventType === "app_mention") {
     const eventId = body.event_id as string
     const teamId = body.team_id as string
     const { text, channel, user, ts: eventTimestamp } = body.event
@@ -88,7 +120,7 @@ export async function POST(request: Request) {
       console.log("[Slack Events] Post result:", postResult)
     }
   } else {
-    console.log("[Slack Events] Non-mention event, event type:", body.event?.type || "none")
+    console.log("[Slack Events] Unhandled event type:", eventType || "none")
   }
 
   return NextResponse.json({ ok: true })

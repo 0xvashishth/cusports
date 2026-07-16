@@ -27,12 +27,12 @@ export async function postToSlackChannel(
   orgId: string,
   message: string,
   blocks?: object[],
-): Promise<boolean> {
+): Promise<{ ok: boolean; ts: string | null }> {
   console.log("[Slack Client] postToSlackChannel called for org:", orgId);
   const token = await getSlackBotToken(orgId);
   if (!token) {
     console.log("[Slack Client] No bot token, cannot post");
-    return false;
+    return { ok: false, ts: null };
   }
 
   const ac = createAdminClient();
@@ -47,7 +47,7 @@ export async function postToSlackChannel(
       "[Slack Client] Error fetching integration for channel:",
       intErr.message,
     );
-    return false;
+    return { ok: false, ts: null };
   }
 
   if (!integration?.slack_channel_id) {
@@ -55,7 +55,7 @@ export async function postToSlackChannel(
       "[Slack Client] No slack_channel_id configured for org:",
       orgId,
     );
-    return false;
+    return { ok: false, ts: null };
   }
 
   console.log(
@@ -83,7 +83,7 @@ export async function postToSlackChannel(
     "[Slack Client] chat.postMessage response:",
     JSON.stringify(data, null, 2),
   );
-  return data.ok === true;
+  return { ok: data.ok === true, ts: data.ts || null };
 }
 
 export async function postToSlackChannelById(

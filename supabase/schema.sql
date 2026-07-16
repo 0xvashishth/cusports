@@ -70,6 +70,7 @@ CREATE TABLE public.tournaments (
   end_date date NOT NULL,
   venue text,
   status text DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'published'::text, 'completed'::text])),
+  slack_notification_ts text,
   CONSTRAINT tournaments_pkey PRIMARY KEY (id),
   CONSTRAINT tournaments_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id)
 );

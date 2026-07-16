@@ -97,7 +97,7 @@ export async function notifyTournamentCreated(
   console.log("[Slack Notifications] Sending tournament notification to channel:", integration.slack_channel_id)
   const result = await postToSlackChannel(orgId, text, blocks)
   console.log("[Slack Notifications] Tournament notification result:", result)
-  return result
+  return result.ok
 }
 
 export async function notifyTournamentPublished(
@@ -105,7 +105,7 @@ export async function notifyTournamentPublished(
   orgSlug: string,
   tournament: Tournament,
   categories: Category[],
-): Promise<boolean> {
+): Promise<{ ok: boolean; ts: string | null }> {
   console.log("[Slack Notifications] notifyTournamentPublished called:", { orgId, orgSlug, tournamentName: tournament.name })
 
   const ac = createAdminClient()
@@ -125,17 +125,17 @@ export async function notifyTournamentPublished(
 
   if (!integration?.slack_channel_id) {
     console.log("[Slack Notifications] No slack_channel_id, skipping publish notification")
-    return false
+    return { ok: false, ts: null }
   }
 
   if (!integration.slack_bot_token_encrypted) {
     console.log("[Slack Notifications] No bot token, skipping publish notification")
-    return false
+    return { ok: false, ts: null }
   }
 
   if (integration.allowed_channel_ids && integration.allowed_channel_ids.length > 0) {
     const allowed = await isChannelAllowed(orgId, integration.slack_channel_id)
-    if (!allowed) return false
+    if (!allowed) return { ok: false, ts: null }
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
@@ -160,7 +160,7 @@ export async function notifyTournamentPublished(
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `The tournament *${tournament.name}* has been published and is now visible to all players!`,
+        text: `The tournament *${tournament.name}* has been published and is now visible to all players!\n\nReact with ✅ to register for this tournament.`,
       },
     },
     {
@@ -301,5 +301,5 @@ export async function notifyTournamentCompleted(
   console.log("[Slack Notifications] Sending completion notification to channel:", integration.slack_channel_id)
   const result = await postToSlackChannel(orgId, text, blocks)
   console.log("[Slack Notifications] Completion notification result:", result)
-  return result
+  return result.ok
 }
