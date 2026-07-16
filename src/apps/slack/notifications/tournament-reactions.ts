@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getSlackBotToken, addReaction } from "../client"
+import { getSlackBotToken, addReaction, postDMToSlackUser } from "../client"
 
 const PARTICIPATION_EMOJIS = ["white_check_mark", "heavy_check_mark", "check_mark"]
 
@@ -22,7 +22,7 @@ export async function handleReactionAdded(
 
   const { data: tournament } = await ac
     .from("tournaments")
-    .select("id, organization_id")
+    .select("id, organization_id, name")
     .eq("slack_notification_ts", messageTs)
     .single()
 
@@ -68,6 +68,30 @@ export async function handleReactionAdded(
   }
 
   console.log("[Tournament Reactions] Successfully registered player for tournament:", { profileId, tournamentId: tournament.id })
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  const tournamentUrl = `${siteUrl}/org/${orgSlug}/tournaments/${tournament.id}`
+
+  await postDMToSlackUser(orgId, slackUserId, `You're registered for *${tournament.name}*!`, [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `You've been registered for *${tournament.name}* across all categories.`,
+      },
+    },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "View Tournament", emoji: true },
+          url: tournamentUrl,
+          style: "primary",
+        },
+      ],
+    },
+  ])
 }
 
 export async function handleReactionRemoved(
@@ -88,7 +112,7 @@ export async function handleReactionRemoved(
 
   const { data: tournament } = await ac
     .from("tournaments")
-    .select("id, organization_id")
+    .select("id, organization_id, name")
     .eq("slack_notification_ts", messageTs)
     .single()
 
@@ -120,6 +144,8 @@ export async function handleReactionRemoved(
   }
 
   console.log("[Tournament Reactions] Successfully unregistered player from tournament:", { profileId, tournamentId: tournament.id })
+
+  await postDMToSlackUser(orgId, slackUserId, `You've been unregistered from *${tournament.name}*.`)
 }
 
 async function resolveProfileBySlackUserId(

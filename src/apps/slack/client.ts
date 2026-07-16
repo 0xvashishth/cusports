@@ -129,6 +129,41 @@ export async function postToSlackChannelById(
   return data.ok === true;
 }
 
+export async function postDMToSlackUser(
+  orgId: string,
+  slackUserId: string,
+  message: string,
+  blocks?: object[],
+): Promise<boolean> {
+  console.log("[Slack Client] postDMToSlackUser called:", { orgId, slackUserId });
+  const token = await getSlackBotToken(orgId);
+  if (!token) {
+    console.log("[Slack Client] No bot token, cannot DM user");
+    return false;
+  }
+
+  const payload: Record<string, unknown> = {
+    channel: slackUserId,
+    text: message,
+  };
+  if (blocks) payload.blocks = blocks;
+
+  console.log("[Slack Client] Sending DM to user:", slackUserId);
+
+  const res = await fetch("https://slack.com/api/chat.postMessage", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+  console.log("[Slack Client] DM response:", JSON.stringify(data, null, 2));
+  return data.ok === true;
+}
+
 export async function isChannelAllowed(
   orgId: string,
   channelId: string,

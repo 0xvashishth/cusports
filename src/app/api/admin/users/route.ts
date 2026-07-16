@@ -75,6 +75,11 @@ export async function DELETE(request: Request) {
 
   const adminClient = createAdminClient()
 
+  await adminClient.from("rankings").delete().eq("entity_id", id)
+  await adminClient.from("tournament_entries").delete().eq("profile_id", id)
+  await adminClient.from("org_members").delete().eq("profile_id", id)
+  await adminClient.from("profiles").delete().eq("id", id)
+
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(id)
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 400 })
 

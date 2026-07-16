@@ -115,6 +115,7 @@ CREATE TABLE public.org_integrations (
   slack_team_id text,
   slack_channel_id text,
   slack_bot_token_encrypted text,
+  allowed_channel_ids ARRAY DEFAULT '{}'::text[],
   CONSTRAINT org_integrations_pkey PRIMARY KEY (id),
   CONSTRAINT org_integrations_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id)
 );
@@ -188,18 +189,12 @@ CREATE TABLE public.bracket_matches (
   CONSTRAINT bracket_matches_loser_next_fkey FOREIGN KEY (loser_next_match_id) REFERENCES public.bracket_matches(id)
 );
 CREATE TABLE public.slack_events (
-  event_id    text NOT NULL PRIMARY KEY,
-  team_id     text NOT NULL,
-  channel_id  text NOT NULL,
-  user_id     text NOT NULL,
-  event_type  text NOT NULL,
-  raw_json    jsonb,
-  created_at  timestamp with time zone DEFAULT now()
+  event_id text NOT NULL,
+  team_id text NOT NULL,
+  channel_id text NOT NULL,
+  user_id text NOT NULL,
+  event_type text NOT NULL,
+  raw_json jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT slack_events_pkey PRIMARY KEY (event_id)
 );
-ALTER TABLE public.slack_events ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role full access on slack_events"
-  ON public.slack_events
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);
-CREATE INDEX idx_slack_events_created_at ON public.slack_events (created_at);
