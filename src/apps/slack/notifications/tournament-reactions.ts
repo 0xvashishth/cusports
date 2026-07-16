@@ -77,6 +77,33 @@ export async function handleReactionAdded(
     return;
   }
 
+  const { data: existingRankings } = await ac
+    .from("rankings")
+    .select("category_id")
+    .eq("entity_id", profileId)
+    .eq("organization_id", orgId);
+
+  const existingCategoryIds = new Set(
+    (existingRankings || []).map((r) => r.category_id),
+  );
+  const newRankings = tournamentCategories
+    .filter((tc) => !existingCategoryIds.has(tc.category_id))
+    .map((tc) => ({
+      organization_id: orgId,
+      category_id: tc.category_id,
+      entity_id: profileId,
+      entity_type: "player" as const,
+      rating: 1000,
+      points: 0,
+      matches_played: 0,
+      wins: 0,
+      losses: 0,
+    }));
+
+  if (newRankings.length > 0) {
+    await ac.from("rankings").insert(newRankings);
+  }
+
   const entries = tournamentCategories.map((tc) => ({
     tournament_id: tournament.id,
     profile_id: profileId,
@@ -339,27 +366,6 @@ async function resolveOrCreateProfile(
       memberError.message,
     );
     return null;
-  }
-
-  const { data: categories } = await ac
-    .from("categories")
-    .select("id")
-    .eq("organization_id", orgId);
-
-  if (categories && categories.length > 0) {
-    const rankings = categories.map((c) => ({
-      organization_id: orgId,
-      category_id: c.id,
-      entity_id: profileId,
-      entity_type: "player" as const,
-      rating: 1000,
-      points: 0,
-      matches_played: 0,
-      wins: 0,
-      losses: 0,
-    }));
-
-    await ac.from("rankings").insert(rankings);
   }
 
   return profileId;
