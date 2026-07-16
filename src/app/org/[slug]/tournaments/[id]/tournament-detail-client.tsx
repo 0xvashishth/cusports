@@ -621,127 +621,129 @@ export function TournamentDetailClient({
           )}
         </TabsContent>
 
-        {isManager && tournament.status === "published" && (
+        {isManager && tournamentStatus !== "draft" && (
           <TabsContent value="settings" className="space-y-6 pt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Swords className="h-5 w-5 text-primary" />
-                  Generate Fixtures
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Configure bracket settings and generate fixtures for each category.
-                  Players are seeded so top-rated players are spread across the bracket.
-                </p>
+            {tournamentStatus === "published" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Swords className="h-5 w-5 text-primary" />
+                    Generate Fixtures
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Configure bracket settings and generate fixtures for each category.
+                    Players are seeded so top-rated players are spread across the bracket.
+                  </p>
 
-                <div className="space-y-3">
-                  <Label>Category</Label>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={genCategory}
-                    onChange={(e) => setGenCategory(e.target.value)}
-                  >
-                    {categories.map((tc) => {
-                      const hasExisting = matchesByCategory.get(tc.category_id || "")?.length || 0;
-                      return (
-                        <option key={tc.category_id} value={tc.category_id}>
-                          {tc.category?.name || "Unknown"}
-                          {hasExisting > 0 ? ` (${hasExisting} matches)` : ""}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Bracket Type</Label>
+                  <div className="space-y-3">
+                    <Label>Category</Label>
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={bracketType}
-                      onChange={(e) => setBracketType(e.target.value as BracketType)}
+                      value={genCategory}
+                      onChange={(e) => setGenCategory(e.target.value)}
                     >
-                      <option value="single_elimination">Single Elimination</option>
-                      <option value="double_elimination">Double Elimination</option>
+                      {categories.map((tc) => {
+                        const hasExisting = matchesByCategory.get(tc.category_id || "")?.length || 0;
+                        return (
+                          <option key={tc.category_id} value={tc.category_id}>
+                            {tc.category?.name || "Unknown"}
+                            {hasExisting > 0 ? ` (${hasExisting} matches)` : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Seeding</Label>
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={seedingMethod}
-                      onChange={(e) => setSeedingMethod(e.target.value as SeedingMethod)}
-                    >
-                      <option value="ranked">By Ranking</option>
-                      <option value="random">Random</option>
-                      <option value="manual">Manual</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Bye Handling</Label>
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={byeHandling}
-                      onChange={(e) => setByeHandling(e.target.value as ByeHandling)}
-                    >
-                      <option value="top_seeds_get_byes">Top Seeds Get Byes</option>
-                      <option value="random_byes">Random Byes</option>
-                    </select>
-                  </div>
-
-                  {bracketType === "single_elimination" && (
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Third Place Match</Label>
-                      <div className="flex items-center h-10">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={thirdPlaceMatch}
-                            onChange={(e) => setThirdPlaceMatch(e.target.checked)}
-                            className="rounded border-input"
-                          />
-                          <span className="text-sm">Enable 3rd place playoff</span>
-                        </label>
+                      <Label>Bracket Type</Label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={bracketType}
+                        onChange={(e) => setBracketType(e.target.value as BracketType)}
+                      >
+                        <option value="single_elimination">Single Elimination</option>
+                        <option value="double_elimination">Double Elimination</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Seeding</Label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={seedingMethod}
+                        onChange={(e) => setSeedingMethod(e.target.value as SeedingMethod)}
+                      >
+                        <option value="ranked">By Ranking</option>
+                        <option value="random">Random</option>
+                        <option value="manual">Manual</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Bye Handling</Label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={byeHandling}
+                        onChange={(e) => setByeHandling(e.target.value as ByeHandling)}
+                      >
+                        <option value="top_seeds_get_byes">Top Seeds Get Byes</option>
+                        <option value="random_byes">Random Byes</option>
+                      </select>
+                    </div>
+
+                    {bracketType === "single_elimination" && (
+                      <div className="space-y-2">
+                        <Label>Third Place Match</Label>
+                        <div className="flex items-center h-10">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={thirdPlaceMatch}
+                              onChange={(e) => setThirdPlaceMatch(e.target.checked)}
+                              className="rounded border-input"
+                            />
+                            <span className="text-sm">Enable 3rd place playoff</span>
+                          </label>
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {bracketType === "double_elimination" && (
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">
-                        Double elimination: losers bracket final feeds directly into the Grand Final. Tournament concludes when the Grand Final is played.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Button
-                    onClick={() => setGenerateOpen(true)}
-                    disabled={generating}
-                    className="gap-2"
-                  >
-                    {generating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Play className="h-4 w-4" />
                     )}
-                    {generating ? "Generating..." : "Generate Fixtures"}
-                  </Button>
-                  {safeBracketMatches.length > 0 && (
-                    <Button variant="outline" onClick={fetchData}>
-                      Refresh
+
+                    {bracketType === "double_elimination" && (
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          Double elimination: losers bracket final feeds directly into the Grand Final. Tournament concludes when the Grand Final is played.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={() => setGenerateOpen(true)}
+                      disabled={generating}
+                      className="gap-2"
+                    >
+                      {generating ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Play className="h-4 w-4" />
+                      )}
+                      {generating ? "Generating..." : "Generate Fixtures"}
                     </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {safeBracketMatches.length > 0 && (
+                      <Button variant="outline" onClick={fetchData}>
+                        Refresh
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>
@@ -784,67 +786,61 @@ export function TournamentDetailClient({
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Bell className="h-5 w-5 text-primary" />
-                  Notify Publication
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Send a Slack notification to announce the tournament. Players can react with ✅ to register.
-                </p>
-                <Button
-                  onClick={notifyPublished}
-                  disabled={notifyingPublished || tournamentStatus !== "published"}
-                  className="w-full gap-2"
-                >
-                  {notifyingPublished ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Bell className="h-4 w-4" />
-                  )}
-                  {notifyingPublished ? "Sending..." : "Notify Publication"}
-                </Button>
-                {tournamentStatus !== "published" && (
-                  <p className="text-xs text-muted-foreground">
-                    Available once the tournament is published.
+            {tournamentStatus === "published" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-primary" />
+                    Notify Publication
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Send a Slack notification to announce the tournament. Players can react with ✅ to register.
                   </p>
-                )}
-              </CardContent>
-            </Card>
+                  <Button
+                    onClick={notifyPublished}
+                    disabled={notifyingPublished}
+                    className="w-full gap-2"
+                  >
+                    {notifyingPublished ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Bell className="h-4 w-4" />
+                    )}
+                    {notifyingPublished ? "Sending..." : "Notify Publication"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Bell className="h-5 w-5 text-primary" />
-                  Notify Completion
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Send a Slack notification with the tournament results and category winners.
-                </p>
-                <Button
-                  onClick={notifyCompletion}
-                  disabled={notifying || tournamentStatus !== "completed"}
-                  className="w-full gap-2"
-                >
-                  {notifying ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Bell className="h-4 w-4" />
-                  )}
-                  {notifying ? "Sending..." : "Notify Completion"}
-                </Button>
-                {tournamentStatus !== "completed" && (
-                  <p className="text-xs text-muted-foreground">
-                    Available once the tournament is completed.
+            {tournamentStatus === "completed" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-primary" />
+                    Notify Completion
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Send a Slack notification with the tournament results and category winners.
                   </p>
-                )}
-              </CardContent>
-            </Card>
+                  <Button
+                    onClick={notifyCompletion}
+                    disabled={notifying}
+                    className="w-full gap-2"
+                  >
+                    {notifying ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Bell className="h-4 w-4" />
+                    )}
+                    {notifying ? "Sending..." : "Notify Completion"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         )}
       </Tabs>
