@@ -1,7 +1,11 @@
-import { createAdminClient } from "@/lib/supabase/admin"
-import { getSlackBotToken, addReaction, postDMToSlackUser } from "../client"
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getSlackBotToken, addReaction, postDMToSlackUser } from "../client";
 
-const PARTICIPATION_EMOJIS = ["white_check_mark", "heavy_check_mark", "check_mark"]
+const PARTICIPATION_EMOJIS = [
+  "white_check_mark",
+  "heavy_check_mark",
+  "check_mark",
+];
 
 export async function handleReactionAdded(
   orgId: string,
@@ -11,87 +15,119 @@ export async function handleReactionAdded(
   messageTs: string,
   botToken: string,
 ): Promise<void> {
-  console.log("[Tournament Reactions] handleReactionAdded:", { orgId, slackUserId, reaction, messageTs })
+  console.log("[Tournament Reactions] handleReactionAdded:", {
+    orgId,
+    slackUserId,
+    reaction,
+    messageTs,
+  });
 
   if (!PARTICIPATION_EMOJIS.includes(reaction)) {
-    console.log("[Tournament Reactions] Not a participation emoji, ignoring")
-    return
+    console.log("[Tournament Reactions] Not a participation emoji, ignoring");
+    return;
   }
 
-  const ac = createAdminClient()
+  const ac = createAdminClient();
 
   const { data: tournament } = await ac
     .from("tournaments")
     .select("id, organization_id, name")
     .eq("slack_notification_ts", messageTs)
-    .single()
+    .single();
 
   if (!tournament) {
-    console.log("[Tournament Reactions] No tournament found for message ts:", messageTs)
-    return
+    console.log(
+      "[Tournament Reactions] No tournament found for message ts:",
+      messageTs,
+    );
+    return;
   }
 
   if (tournament.organization_id !== orgId) {
-    console.log("[Tournament Reactions] Tournament belongs to different org, ignoring")
-    return
+    console.log(
+      "[Tournament Reactions] Tournament belongs to different org, ignoring",
+    );
+    return;
   }
 
-  const profileId = await resolveOrCreateProfile(ac, orgId, slackUserId, botToken)
+  const profileId = await resolveOrCreateProfile(
+    ac,
+    orgId,
+    slackUserId,
+    botToken,
+  );
   if (!profileId) {
-    console.log("[Tournament Reactions] Could not resolve or create profile for user:", slackUserId)
-    return
+    console.log(
+      "[Tournament Reactions] Could not resolve or create profile for user:",
+      slackUserId,
+    );
+    return;
   }
 
   const { data: tournamentCategories } = await ac
     .from("tournament_categories")
     .select("category_id")
-    .eq("tournament_id", tournament.id)
+    .eq("tournament_id", tournament.id);
 
   if (!tournamentCategories || tournamentCategories.length === 0) {
-    console.log("[Tournament Reactions] No categories for tournament:", tournament.id)
-    return
+    console.log(
+      "[Tournament Reactions] No categories for tournament:",
+      tournament.id,
+    );
+    return;
   }
 
   const entries = tournamentCategories.map((tc) => ({
     tournament_id: tournament.id,
     profile_id: profileId,
     category_id: tc.category_id,
-  }))
+  }));
 
   const { error: insertError } = await ac
     .from("tournament_entries")
-    .upsert(entries, { onConflict: "tournament_id,profile_id,category_id" })
+    .upsert(entries, { onConflict: "tournament_id,profile_id,category_id" });
 
   if (insertError) {
-    console.error("[Tournament Reactions] Failed to insert entries:", insertError.message)
-    return
+    console.error(
+      "[Tournament Reactions] Failed to insert entries:",
+      insertError.message,
+    );
+    return;
   }
 
-  console.log("[Tournament Reactions] Successfully registered player for tournament:", { profileId, tournamentId: tournament.id })
+  console.log(
+    "[Tournament Reactions] Successfully registered player for tournament:",
+    { profileId, tournamentId: tournament.id },
+  );
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-  const tournamentUrl = `${siteUrl}/org/${orgSlug}/tournaments/${tournament.id}`
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const tournamentUrl = `${siteUrl}/org/${orgSlug}/tournaments/${tournament.id}`;
 
-  await postDMToSlackUser(orgId, slackUserId, `You're registered for *${tournament.name}*!`, [
-    {
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `You've been registered for *${tournament.name}* across all categories.`,
-      },
-    },
-    {
-      type: "actions",
-      elements: [
-        {
-          type: "button",
-          text: { type: "plain_text", text: "View Tournament", emoji: true },
-          url: tournamentUrl,
-          style: "primary",
+  await postDMToSlackUser(
+    orgId,
+    slackUserId,
+    `You're registered for *${tournament.name}*!`,
+    [
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `You've been registered for *${tournament.name}*.`,
         },
-      ],
-    },
-  ])
+      },
+      {
+        type: "actions",
+        elements: [
+          {
+            type: "button",
+            text: { type: "plain_text", text: "View Tournament", emoji: true },
+            url: tournamentUrl,
+            style: "primary",
+          },
+        ],
+      },
+    ],
+  );
 }
 
 export async function handleReactionRemoved(
@@ -101,51 +137,79 @@ export async function handleReactionRemoved(
   messageTs: string,
   botToken: string,
 ): Promise<void> {
-  console.log("[Tournament Reactions] handleReactionRemoved:", { orgId, slackUserId, reaction, messageTs })
+  console.log("[Tournament Reactions] handleReactionRemoved:", {
+    orgId,
+    slackUserId,
+    reaction,
+    messageTs,
+  });
 
   if (!PARTICIPATION_EMOJIS.includes(reaction)) {
-    console.log("[Tournament Reactions] Not a participation emoji, ignoring")
-    return
+    console.log("[Tournament Reactions] Not a participation emoji, ignoring");
+    return;
   }
 
-  const ac = createAdminClient()
+  const ac = createAdminClient();
 
   const { data: tournament } = await ac
     .from("tournaments")
     .select("id, organization_id, name")
     .eq("slack_notification_ts", messageTs)
-    .single()
+    .single();
 
   if (!tournament) {
-    console.log("[Tournament Reactions] No tournament found for message ts:", messageTs)
-    return
+    console.log(
+      "[Tournament Reactions] No tournament found for message ts:",
+      messageTs,
+    );
+    return;
   }
 
   if (tournament.organization_id !== orgId) {
-    console.log("[Tournament Reactions] Tournament belongs to different org, ignoring")
-    return
+    console.log(
+      "[Tournament Reactions] Tournament belongs to different org, ignoring",
+    );
+    return;
   }
 
-  const profileId = await resolveProfileBySlackUserId(ac, orgId, slackUserId, botToken)
+  const profileId = await resolveProfileBySlackUserId(
+    ac,
+    orgId,
+    slackUserId,
+    botToken,
+  );
   if (!profileId) {
-    console.log("[Tournament Reactions] Could not resolve profile for user:", slackUserId)
-    return
+    console.log(
+      "[Tournament Reactions] Could not resolve profile for user:",
+      slackUserId,
+    );
+    return;
   }
 
   const { error: deleteError } = await ac
     .from("tournament_entries")
     .delete()
     .eq("tournament_id", tournament.id)
-    .eq("profile_id", profileId)
+    .eq("profile_id", profileId);
 
   if (deleteError) {
-    console.error("[Tournament Reactions] Failed to remove entries:", deleteError.message)
-    return
+    console.error(
+      "[Tournament Reactions] Failed to remove entries:",
+      deleteError.message,
+    );
+    return;
   }
 
-  console.log("[Tournament Reactions] Successfully unregistered player from tournament:", { profileId, tournamentId: tournament.id })
+  console.log(
+    "[Tournament Reactions] Successfully unregistered player from tournament:",
+    { profileId, tournamentId: tournament.id },
+  );
 
-  await postDMToSlackUser(orgId, slackUserId, `You've been unregistered from *${tournament.name}*.`)
+  await postDMToSlackUser(
+    orgId,
+    slackUserId,
+    `You've been unregistered from *${tournament.name}*.`,
+  );
 }
 
 async function resolveProfileBySlackUserId(
@@ -157,23 +221,26 @@ async function resolveProfileBySlackUserId(
   const res = await fetch(
     `https://slack.com/api/users.info?user=${slackUserId}`,
     { headers: { Authorization: `Bearer ${botToken}` } },
-  )
-  const data = await res.json()
+  );
+  const data = await res.json();
 
   if (!data.ok || !data.user?.profile?.email) {
-    console.log("[Tournament Reactions] Failed to get Slack user info:", { ok: data.ok, hasEmail: !!data.user?.profile?.email })
-    return null
+    console.log("[Tournament Reactions] Failed to get Slack user info:", {
+      ok: data.ok,
+      hasEmail: !!data.user?.profile?.email,
+    });
+    return null;
   }
 
-  const email = data.user.profile.email.toLowerCase()
+  const email = data.user.profile.email.toLowerCase();
 
   const { data: profile } = await ac
     .from("profiles")
     .select("id")
     .eq("email", email)
-    .single()
+    .single();
 
-  return profile?.id || null
+  return profile?.id || null;
 }
 
 async function resolveOrCreateProfile(
@@ -185,22 +252,26 @@ async function resolveOrCreateProfile(
   const res = await fetch(
     `https://slack.com/api/users.info?user=${slackUserId}`,
     { headers: { Authorization: `Bearer ${botToken}` } },
-  )
-  const data = await res.json()
+  );
+  const data = await res.json();
 
   if (!data.ok || !data.user?.profile?.email) {
-    console.log("[Tournament Reactions] Failed to get Slack user info:", { ok: data.ok, hasEmail: !!data.user?.profile?.email })
-    return null
+    console.log("[Tournament Reactions] Failed to get Slack user info:", {
+      ok: data.ok,
+      hasEmail: !!data.user?.profile?.email,
+    });
+    return null;
   }
 
-  const email = data.user.profile.email.toLowerCase()
-  const fullName = data.user.profile.real_name || data.user.profile.name || email
+  const email = data.user.profile.email.toLowerCase();
+  const fullName =
+    data.user.profile.real_name || data.user.profile.name || email;
 
   const { data: existingProfile } = await ac
     .from("profiles")
     .select("id")
     .eq("email", email)
-    .single()
+    .single();
 
   if (existingProfile) {
     const { data: memberCheck } = await ac
@@ -208,7 +279,7 @@ async function resolveOrCreateProfile(
       .select("id")
       .eq("organization_id", orgId)
       .eq("profile_id", existingProfile.id)
-      .single()
+      .single();
 
     if (!memberCheck) {
       await ac.from("org_members").insert({
@@ -216,10 +287,10 @@ async function resolveOrCreateProfile(
         profile_id: existingProfile.id,
         org_role: "player",
         status: "active",
-      })
+      });
     }
 
-    return existingProfile.id
+    return existingProfile.id;
   }
 
   const { data: authData, error: authError } = await ac.auth.admin.createUser({
@@ -227,26 +298,32 @@ async function resolveOrCreateProfile(
     password: Math.random().toString(36).slice(2),
     email_confirm: true,
     user_metadata: { full_name: fullName },
-  })
+  });
 
   if (authError || !authData?.user) {
-    console.error("[Tournament Reactions] Failed to create user:", authError?.message)
-    return null
+    console.error(
+      "[Tournament Reactions] Failed to create user:",
+      authError?.message,
+    );
+    return null;
   }
 
-  const profileId = authData.user.id
+  const profileId = authData.user.id;
 
   const { error: profileError } = await ac.from("profiles").insert({
     id: profileId,
     full_name: fullName,
     email,
     platform_role: "player",
-  })
+  });
 
   if (profileError) {
-    await ac.auth.admin.deleteUser(profileId)
-    console.error("[Tournament Reactions] Failed to create profile:", profileError.message)
-    return null
+    await ac.auth.admin.deleteUser(profileId);
+    console.error(
+      "[Tournament Reactions] Failed to create profile:",
+      profileError.message,
+    );
+    return null;
   }
 
   const { error: memberError } = await ac.from("org_members").insert({
@@ -254,17 +331,20 @@ async function resolveOrCreateProfile(
     profile_id: profileId,
     org_role: "player",
     status: "active",
-  })
+  });
 
   if (memberError) {
-    console.error("[Tournament Reactions] Failed to add org member:", memberError.message)
-    return null
+    console.error(
+      "[Tournament Reactions] Failed to add org member:",
+      memberError.message,
+    );
+    return null;
   }
 
   const { data: categories } = await ac
     .from("categories")
     .select("id")
-    .eq("organization_id", orgId)
+    .eq("organization_id", orgId);
 
   if (categories && categories.length > 0) {
     const rankings = categories.map((c) => ({
@@ -277,10 +357,10 @@ async function resolveOrCreateProfile(
       matches_played: 0,
       wins: 0,
       losses: 0,
-    }))
+    }));
 
-    await ac.from("rankings").insert(rankings)
+    await ac.from("rankings").insert(rankings);
   }
 
-  return profileId
+  return profileId;
 }
