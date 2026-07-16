@@ -17,12 +17,33 @@ export async function POST(request: Request) {
   const eventType = body.event?.type
 
   if (eventType === "reaction_added" || eventType === "reaction_removed") {
+    const eventId = body.event_id as string
     const teamId = body.team_id as string
     const { reaction, user, item } = body.event
     const messageTs = item?.ts
     const channel = item?.channel
 
-    console.log("[Slack Events] Reaction event:", { eventType, reaction, user, messageTs, channel, teamId })
+    console.log("[Slack Events] Reaction event:", { eventType, eventId, reaction, user, messageTs, channel, teamId })
+
+    const ac = createAdminClient()
+    const { error: insertErr } = await ac
+      .from("slack_events")
+      .insert({
+        event_id: eventId,
+        team_id: teamId,
+        channel_id: channel || "",
+        user_id: user,
+        event_type: eventType,
+        raw_json: body,
+      })
+
+    if (insertErr) {
+      if (insertErr.code === "23505") {
+        console.log("[Slack Events] Duplicate reaction event, skipping:", eventId)
+        return NextResponse.json({ ok: true })
+      }
+      console.error("[Slack Events] Failed to insert reaction event for dedup:", insertErr.message)
+    }
 
     const orgInfo = await lookupOrgBySlackTeam(teamId)
     if (!orgInfo) {
