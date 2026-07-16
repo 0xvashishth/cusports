@@ -111,9 +111,11 @@ export async function handleFixtures(orgId: string): Promise<SlackCommandResult>
         const playerA = profileMap.get(m.player_a_id) || "Unknown"
         const playerB = profileMap.get(m.player_b_id) || "Unknown"
         const maxRound = maxRoundBySide.get(`${m.tournament_category_id}:${m.bracket_side}`) || m.round_number
-        const roundLabel = getRoundLabel(m.round_number, maxRound)
-        const sideLabel = getBracketSideLabel(m.bracket_side)
-        const label = sideLabel ? `${roundLabel} (${sideLabel})` : roundLabel
+        const roundLabel = m.bracket_side === "losers"
+          ? ""
+          : getRoundLabel(m.round_number, maxRound)
+        const sideLabel = getBracketSideLabel(m.bracket_side, m.round_number, maxRound)
+        const label = roundLabel ? (sideLabel ? `${roundLabel} (${sideLabel})` : roundLabel) : sideLabel
         lines.push(`    ${label}: ${playerA} vs ${playerB}`)
       }
     }

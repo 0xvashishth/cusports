@@ -34,9 +34,26 @@ export function getRoundLabel(roundNumber: number, totalRounds: number): string 
   return ROUND_LABELS[fromFinal] || `Round ${roundNumber}`
 }
 
-export function getBracketSideLabel(side: string): string {
-  if (side === "losers") return "Losers"
+export function getBracketSideLabel(
+  side: string,
+  roundNumber?: number,
+  maxLosersRound?: number,
+): string {
   if (side === "grand_final") return "Grand Final"
   if (side === "third_place") return "3rd Place"
+  if (side === "losers" && roundNumber != null && maxLosersRound != null) {
+    const lbIndex = roundNumber - 1
+    const isTypeA = lbIndex % 2 === 0
+    const totalWBRounds = Math.floor(maxLosersRound / 2) + 1
+    if (isTypeA) {
+      if (lbIndex === 0) return "WB R1 Losers"
+      return `Compression ${Math.floor(lbIndex / 2)}`
+    } else {
+      const wbRound = Math.floor(lbIndex / 2) + 2
+      if (wbRound === totalWBRounds) return "WB Final Drop"
+      return `WB R${wbRound} Drop`
+    }
+  }
+  if (side === "losers") return "Losers"
   return ""
 }
