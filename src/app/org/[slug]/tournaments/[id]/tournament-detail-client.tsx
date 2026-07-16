@@ -116,6 +116,11 @@ export function TournamentDetailClient({
   const [notifying, setNotifying] = useState(false);
   const [notifyingPublished, setNotifyingPublished] = useState(false);
 
+  const [editName, setEditName] = useState(tournament.name);
+  const [editStartDate, setEditStartDate] = useState(tournament.start_date);
+  const [editEndDate, setEditEndDate] = useState(tournament.end_date);
+  const [saving, setSaving] = useState(false);
+
   const fetchData = useCallback(async () => {
     const [entriesRes, bracketRes] = await Promise.all([
       fetch(`/api/org/${org.slug}/tournaments/${tournament.id}/entries`),
@@ -305,6 +310,34 @@ export function TournamentDetailClient({
     }
 
     setPublishing(false);
+    router.refresh();
+  }
+
+  async function updateTournament() {
+    setSaving(true);
+    setError(null);
+
+    const res = await fetch(
+      `/api/org/${org.slug}/tournaments/${tournament.id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName,
+          start_date: editStartDate,
+          end_date: editEndDate,
+        }),
+      },
+    );
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      setError(data.error || "Failed to update tournament");
+      setSaving(false);
+      return;
+    }
+
+    setSaving(false);
     router.refresh();
   }
 
@@ -744,6 +777,57 @@ export function TournamentDetailClient({
                 </CardContent>
               </Card>
             )}
+
+            <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Settings className="h-5 w-5 text-primary" />
+                    Edit Tournament
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Name</Label>
+                    <input
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Start Date</Label>
+                      <input
+                        type="date"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={editStartDate}
+                        onChange={(e) => setEditStartDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>End Date</Label>
+                      <input
+                        type="date"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={editEndDate}
+                        onChange={(e) => setEditEndDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={updateTournament}
+                    disabled={saving || !editName.trim()}
+                    className="gap-2"
+                  >
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    {saving ? "Saving..." : "Save Changes"}
+                  </Button>
+                </CardContent>
+              </Card>
 
             <Card>
               <CardHeader>
