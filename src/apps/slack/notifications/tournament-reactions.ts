@@ -31,7 +31,7 @@ export async function handleReactionAdded(
 
   const { data: tournament } = await ac
     .from("tournaments")
-    .select("id, organization_id, name")
+    .select("id, organization_id, name, status")
     .eq("slack_notification_ts", messageTs)
     .single();
 
@@ -46,6 +46,14 @@ export async function handleReactionAdded(
   if (tournament.organization_id !== orgId) {
     console.log(
       "[Tournament Reactions] Tournament belongs to different org, ignoring",
+    );
+    return;
+  }
+
+  if (tournament.status !== "published") {
+    console.log(
+      "[Tournament Reactions] Tournament is not published, ignoring reaction:",
+      { status: tournament.status },
     );
     return;
   }
@@ -180,7 +188,7 @@ export async function handleReactionRemoved(
 
   const { data: tournament } = await ac
     .from("tournaments")
-    .select("id, organization_id, name")
+    .select("id, organization_id, name, status")
     .eq("slack_notification_ts", messageTs)
     .single();
 
@@ -195,6 +203,14 @@ export async function handleReactionRemoved(
   if (tournament.organization_id !== orgId) {
     console.log(
       "[Tournament Reactions] Tournament belongs to different org, ignoring",
+    );
+    return;
+  }
+
+  if (tournament.status !== "published") {
+    console.log(
+      "[Tournament Reactions] Tournament is not published, ignoring reaction:",
+      { status: tournament.status },
     );
     return;
   }

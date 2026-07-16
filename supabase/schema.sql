@@ -69,7 +69,7 @@ CREATE TABLE public.tournaments (
   start_date date NOT NULL,
   end_date date NOT NULL,
   venue text,
-  status text DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'published'::text, 'completed'::text])),
+  status text DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'published'::text, 'in_progress'::text, 'completed'::text])),
   slack_notification_ts text,
   CONSTRAINT tournaments_pkey PRIMARY KEY (id),
   CONSTRAINT tournaments_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id)

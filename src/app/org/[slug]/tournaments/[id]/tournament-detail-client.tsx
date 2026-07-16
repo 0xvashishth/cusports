@@ -82,6 +82,7 @@ export function TournamentDetailClient({
   isManager,
 }: TournamentDetailClientProps) {
   const router = useRouter();
+  const tournamentStatus = tournament.status as string;
 
   const [entries, setEntries] = useState(initialEntries ?? []);
   const [bracketMatches, setBracketMatches] = useState<BracketMatch[]>(initialBracketMatches ?? []);
@@ -372,13 +373,15 @@ export function TournamentDetailClient({
               variant={
                 tournament.status === "completed"
                   ? "success"
-                  : tournament.status === "published"
-                    ? "default"
-                    : "secondary"
+                  : tournament.status === "in_progress"
+                    ? "warning"
+                    : tournament.status === "published"
+                      ? "default"
+                      : "secondary"
               }
               className="text-sm capitalize"
             >
-              {tournament.status}
+              {tournament.status === "in_progress" ? "In Progress" : tournament.status}
             </Badge>
           </div>
           <p className="text-muted-foreground flex items-center gap-2">
@@ -530,7 +533,7 @@ export function TournamentDetailClient({
         <TabsContent value="players" className="space-y-6 pt-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Enrolled Players</h2>
-            {isManager && (
+            {isManager && tournament.status === "published" && (
               <Button onClick={() => setAddPlayerOpen(true)} className="gap-2">
                 <UserPlus className="h-4 w-4" />
                 Add Players
@@ -563,7 +566,7 @@ export function TournamentDetailClient({
                         <p className="text-base font-medium">
                           No players enrolled
                         </p>
-                        {isManager && (
+                        {isManager && tournament.status === "published" && (
                           <Button
                             variant="outline"
                             className="mt-3 gap-2"
@@ -596,7 +599,7 @@ export function TournamentDetailClient({
                                   </span>
                                 </Link>
                               </div>
-                              {isManager && (
+        {isManager && tournamentStatus === "published" && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -618,7 +621,7 @@ export function TournamentDetailClient({
           )}
         </TabsContent>
 
-        {isManager && (
+        {isManager && tournament.status === "published" && (
           <TabsContent value="settings" className="space-y-6 pt-6">
             <Card>
               <CardHeader>
@@ -752,17 +755,19 @@ export function TournamentDetailClient({
                   <span className="text-sm">Current status</span>
                   <Badge
                     variant={
-                      tournament.status === "completed"
+                      tournamentStatus === "completed"
                         ? "success"
-                        : tournament.status === "published"
-                          ? "default"
-                          : "secondary"
+                        : tournamentStatus === "in_progress"
+                          ? "warning"
+                          : tournamentStatus === "published"
+                            ? "default"
+                            : "secondary"
                     }
                   >
-                    {tournament.status}
+                    {tournamentStatus === "in_progress" ? "In Progress" : tournamentStatus}
                   </Badge>
                 </div>
-                {tournament.status === "draft" && (
+                {tournamentStatus === "draft" && (
                   <Button
                     onClick={publishTournament}
                     disabled={publishing}
@@ -792,7 +797,7 @@ export function TournamentDetailClient({
                 </p>
                 <Button
                   onClick={notifyPublished}
-                  disabled={notifyingPublished || tournament.status !== "published"}
+                  disabled={notifyingPublished || tournamentStatus !== "published"}
                   className="w-full gap-2"
                 >
                   {notifyingPublished ? (
@@ -802,7 +807,7 @@ export function TournamentDetailClient({
                   )}
                   {notifyingPublished ? "Sending..." : "Notify Publication"}
                 </Button>
-                {tournament.status !== "published" && (
+                {tournamentStatus !== "published" && (
                   <p className="text-xs text-muted-foreground">
                     Available once the tournament is published.
                   </p>
@@ -823,7 +828,7 @@ export function TournamentDetailClient({
                 </p>
                 <Button
                   onClick={notifyCompletion}
-                  disabled={notifying || tournament.status !== "completed"}
+                  disabled={notifying || tournamentStatus !== "completed"}
                   className="w-full gap-2"
                 >
                   {notifying ? (
@@ -833,7 +838,7 @@ export function TournamentDetailClient({
                   )}
                   {notifying ? "Sending..." : "Notify Completion"}
                 </Button>
-                {tournament.status !== "completed" && (
+                {tournamentStatus !== "completed" && (
                   <p className="text-xs text-muted-foreground">
                     Available once the tournament is completed.
                   </p>

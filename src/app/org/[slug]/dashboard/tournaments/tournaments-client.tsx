@@ -26,10 +26,11 @@ interface TournamentsClientProps {
   tournaments: Tournament[]
 }
 
-const statusVariants = {
-  draft: "warning" as const,
-  published: "success" as const,
-  completed: "secondary" as const,
+const statusVariants: Record<string, "default" | "secondary" | "success" | "warning" | "destructive" | "outline"> = {
+  draft: "warning",
+  published: "success",
+  in_progress: "default",
+  completed: "secondary",
 }
 
 export function TournamentsClient({ org, tournaments }: TournamentsClientProps) {
@@ -463,7 +464,7 @@ export function TournamentsClient({ org, tournaments }: TournamentsClientProps) 
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={statusVariants[t.status] || "outline"}>
-                    {t.status}
+                    {t.status === "in_progress" ? "In Progress" : t.status}
                   </Badge>
                 </div>
               </CardContent>

@@ -44,6 +44,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
+  const { data: tournament } = await adminClient
+    .from("tournaments")
+    .select("status")
+    .eq("id", id)
+    .eq("organization_id", org.id)
+    .single()
+
+  if (!tournament) return NextResponse.json({ error: "Tournament not found" }, { status: 404 })
+
+  if (tournament.status !== "published") {
+    return NextResponse.json({ error: "Players can only be added to published tournaments" }, { status: 400 })
+  }
+
   const body = await request.json()
   const { profileIds, categoryId } = body
 
@@ -97,6 +110,19 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
 
   if (!profile || (profile.platform_role !== "manager" && profile.platform_role !== "admin")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
+  const { data: tournament } = await adminClient
+    .from("tournaments")
+    .select("status")
+    .eq("id", id)
+    .eq("organization_id", org.id)
+    .single()
+
+  if (!tournament) return NextResponse.json({ error: "Tournament not found" }, { status: 404 })
+
+  if (tournament.status !== "published") {
+    return NextResponse.json({ error: "Players can only be removed from published tournaments" }, { status: 400 })
   }
 
   const body = await request.json()

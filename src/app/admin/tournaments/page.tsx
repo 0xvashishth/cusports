@@ -86,8 +86,8 @@ export default function AdminTournamentsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={t.status === "published" ? "success" : t.status === "completed" ? "secondary" : "warning"}>
-                    {t.status}
+                  <Badge variant={t.status === "published" ? "success" : t.status === "in_progress" ? "default" : t.status === "completed" ? "secondary" : "warning"}>
+                    {t.status === "in_progress" ? "In Progress" : t.status}
                   </Badge>
                 </div>
               </CardContent>

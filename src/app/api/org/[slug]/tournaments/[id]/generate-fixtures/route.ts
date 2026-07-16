@@ -32,6 +32,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
+  const { data: tournament } = await adminClient
+    .from("tournaments")
+    .select("status")
+    .eq("id", id)
+    .eq("organization_id", org.id)
+    .single()
+
+  if (!tournament) return NextResponse.json({ error: "Tournament not found" }, { status: 404 })
+
+  if (tournament.status !== "published") {
+    return NextResponse.json({ error: "Fixtures can only be generated for published tournaments" }, { status: 400 })
+  }
+
   const body = await request.json()
   const {
     categoryId,
@@ -336,6 +349,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   // Activate any pending matches that already have both players (e.g. from byes)
   await activatePendingMatches(tc.id)
+
+  // Transition tournament to in_progress
+  await adminClient
+    .from("tournaments")
+    .update({ status: "in_progress" })
+    .eq("id", id)
 
   // Note: LB bye detection (auto-completing matches with only 1 possible player)
   // is handled at runtime in advanceMatch, not here. At generation time no matches

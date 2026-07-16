@@ -33,6 +33,7 @@ interface DashboardOverviewClientProps {
     totalTournaments: number
     draftTournaments: number
     publishedTournaments: number
+    inProgressTournaments: number
     completedTournaments: number
   }
   topPlayers: {
@@ -119,6 +120,7 @@ export function DashboardOverviewClient({
   categoryStats,
 }: DashboardOverviewClientProps) {
   const tournamentPieData = [
+    { name: "In Progress", value: stats.inProgressTournaments },
     { name: "Published", value: stats.publishedTournaments },
     { name: "Completed", value: stats.completedTournaments },
     { name: "Draft", value: stats.draftTournaments },
@@ -180,7 +182,7 @@ export function DashboardOverviewClient({
           <CardContent>
             <p className="text-3xl font-bold">{stats.totalTournaments}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {stats.publishedTournaments} active &middot; {stats.completedTournaments} completed
+              {stats.inProgressTournaments} in progress &middot; {stats.publishedTournaments} published &middot; {stats.completedTournaments} completed
             </p>
           </CardContent>
         </Card>

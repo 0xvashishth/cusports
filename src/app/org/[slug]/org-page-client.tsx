@@ -546,10 +546,10 @@ function OrgPageContent({
                           <CardTitle className="text-lg">{t.name}</CardTitle>
                           <Badge
                             variant={
-                              t.status === "completed" ? "success" : "secondary"
+                              t.status === "completed" ? "success" : t.status === "in_progress" ? "warning" : t.status === "published" ? "default" : "secondary"
                             }
                           >
-                            {t.status}
+                            {t.status === "in_progress" ? "In Progress" : t.status}
                           </Badge>
                         </div>
                         <CardDescription>

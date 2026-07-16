@@ -10,7 +10,7 @@ export async function handleFixtures(orgId: string): Promise<SlackCommandResult>
     .from("tournaments")
     .select("id, name, start_date")
     .eq("organization_id", orgId)
-    .in("status", ["published"])
+    .in("status", ["published", "in_progress"])
     .order("start_date", { ascending: true })
 
   if (!tournaments || tournaments.length === 0) {

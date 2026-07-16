@@ -40,7 +40,7 @@ export default async function OrgPage({
     .from("tournaments")
     .select("*")
     .eq("organization_id", org.id)
-    .in("status", ["published", "completed"])
+    .in("status", ["published", "in_progress", "completed"])
     .order("start_date", { ascending: false });
 
   // Load bracket matches from published/completed tournaments

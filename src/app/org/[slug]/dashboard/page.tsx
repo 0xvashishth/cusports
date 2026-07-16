@@ -35,6 +35,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
     { count: totalTournaments },
     { count: draftTournaments },
     { count: publishedTournaments },
+    { count: inProgressTournaments },
     { count: completedTournaments },
   ] = await Promise.all([
     admin
@@ -51,6 +52,11 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
       .select("id", { count: "exact", head: true })
       .eq("organization_id", org.id)
       .eq("status", "published"),
+    admin
+      .from("tournaments")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", org.id)
+      .eq("status", "in_progress"),
     admin
       .from("tournaments")
       .select("id", { count: "exact", head: true })
@@ -279,6 +285,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ slug
           totalTournaments: totalTournaments || 0,
           draftTournaments: draftTournaments || 0,
           publishedTournaments: publishedTournaments || 0,
+          inProgressTournaments: inProgressTournaments || 0,
           completedTournaments: completedTournaments || 0,
         }}
         topPlayers={(topPlayers || []) as unknown as DashboardPageProps["topPlayers"]}
