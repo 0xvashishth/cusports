@@ -1,5 +1,5 @@
 import { advanceMatch, walkoverMatch } from "@/lib/advance-match";
-import { findPlayerByName, validateBothPlayers } from "../validation/players";
+import { findPlayerByEmail, validateBothPlayers } from "../validation/players";
 import {
   findScheduledMatch,
   validateScores,
@@ -10,32 +10,32 @@ import type { SlackCommandResult } from "../types";
 export async function handleManagerReport(
   orgId: string,
   orgSlug: string,
-  reporterName: string,
-  opponentName: string,
+  reporterEmail: string,
+  opponentEmail: string,
   games: { score_a: number; score_b: number }[],
   channelId: string,
 ): Promise<SlackCommandResult> {
   console.log("[Slack ManagerReport] handleManagerReport:", {
     orgId,
-    reporterName,
-    opponentName,
+    reporterEmail,
+    opponentEmail,
     games,
     channelId,
   });
 
-  const reporter = await findPlayerByName(orgId, reporterName);
+  const reporter = await findPlayerByEmail(orgId, reporterEmail);
   if (!reporter) {
     return {
       success: false,
-      replyMessage: `Player "${reporterName}" not found. Make sure the full name matches exactly.`,
+      replyMessage: `Player with email "${reporterEmail}" not found in this organization.`,
     };
   }
 
-  const opponent = await findPlayerByName(orgId, opponentName);
+  const opponent = await findPlayerByEmail(orgId, opponentEmail);
   if (!opponent) {
     return {
       success: false,
-      replyMessage: `Player "${opponentName}" not found. Make sure the full name matches exactly.`,
+      replyMessage: `Player with email "${opponentEmail}" not found in this organization.`,
     };
   }
 
@@ -134,20 +134,20 @@ export async function handleManagerReport(
 
 export async function handleManagerWalkover(
   orgId: string,
-  winnerName: string,
-  loserName: string,
+  winnerEmail: string,
+  loserEmail: string,
 ): Promise<SlackCommandResult> {
-  const winner = await findPlayerByName(orgId, winnerName);
+  const winner = await findPlayerByEmail(orgId, winnerEmail);
   if (!winner) {
     return {
       success: false,
-      replyMessage: `Player "${winnerName}" not found.`,
+      replyMessage: `Player with email "${winnerEmail}" not found.`,
     };
   }
 
-  const loser = await findPlayerByName(orgId, loserName);
+  const loser = await findPlayerByEmail(orgId, loserEmail);
   if (!loser) {
-    return { success: false, replyMessage: `Player "${loserName}" not found.` };
+    return { success: false, replyMessage: `Player with email "${loserEmail}" not found.` };
   }
 
   const playerValidation = await validateBothPlayers(

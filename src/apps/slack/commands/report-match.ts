@@ -1,7 +1,7 @@
 import { advanceMatch } from "@/lib/advance-match";
 import {
   findPlayerBySlackUserId,
-  findPlayerByName,
+  findPlayerByEmail,
   validateBothPlayers,
 } from "../validation/players";
 import {
@@ -15,7 +15,7 @@ export async function handlePlayerReport(
   orgId: string,
   orgSlug: string,
   slackUserId: string,
-  opponentName: string,
+  opponentEmail: string,
   games: { score_a: number; score_b: number }[],
   channelId: string,
   teamId: string,
@@ -24,7 +24,7 @@ export async function handlePlayerReport(
   console.log("[Slack Report] handlePlayerReport:", {
     orgId,
     slackUserId,
-    opponentName,
+    opponentEmail,
     games,
     channelId,
   });
@@ -38,11 +38,11 @@ export async function handlePlayerReport(
     };
   }
 
-  const opponent = await findPlayerByName(orgId, opponentName);
+  const opponent = await findPlayerByEmail(orgId, opponentEmail);
   if (!opponent) {
     return {
       success: false,
-      replyMessage: `Player "${opponentName}" not found. Make sure the full name matches exactly.`,
+      replyMessage: `Player with email "${opponentEmail}" not found in this organization.`,
     };
   }
 

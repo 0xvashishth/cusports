@@ -1,5 +1,5 @@
 import { getSlackBotToken } from "../client";
-import { findPlayerBySlackUserId } from "../validation/players";
+import { findPlayerBySlackUserId, findPlayerByEmail } from "../validation/players";
 import { isManager } from "../validation/matches";
 import { handlePlayerReport } from "./report-match";
 import { handleManagerReport } from "./manager-report";
@@ -218,9 +218,9 @@ export async function routeCommand(
         };
       }
 
-      let opponent: { id: string; fullName: string } | null = null;
+      let opponentEmail: string | null = null;
       if (parsed.opponentSlackUserId) {
-        opponent = await findPlayerBySlackUserId(
+        const opponent = await findPlayerBySlackUserId(
           orgId,
           parsed.opponentSlackUserId,
           botToken,
@@ -236,19 +236,20 @@ export async function routeCommand(
               "The mentioned opponent's Slack email is not linked to any player account in this organization.",
           };
         }
+        opponentEmail = opponent.email;
       } else if (parsed.opponentName) {
-        const { findPlayerByName } = await import("../validation/players");
-        opponent = await findPlayerByName(orgId, parsed.opponentName);
-        console.log("[Slack Router] Opponent lookup by name:", opponent);
+        const opponent = await findPlayerByEmail(orgId, parsed.opponentName);
+        console.log("[Slack Router] Opponent lookup by email:", opponent);
         if (!opponent) {
           return {
             success: false,
-            replyMessage: `Player "${parsed.opponentName}" not found. Make sure the full name matches exactly.`,
+            replyMessage: `Player "${parsed.opponentName}" not found. Please mention them with @username.`,
           };
         }
+        opponentEmail = opponent.email;
       }
 
-      if (!opponent) {
+      if (!opponentEmail) {
         return {
           success: false,
           replyMessage:
@@ -260,7 +261,7 @@ export async function routeCommand(
         orgId,
         orgSlug,
         slackUserId,
-        opponent.fullName,
+        opponentEmail,
         parsed.games!,
         channelId,
         teamId,
@@ -294,7 +295,7 @@ export async function routeCommand(
         };
       }
 
-      let playerAName = parsed.playerA;
+      let playerAEmail: string | null = parsed.playerA || null;
       if (parsed.playerASlackUserId) {
         const playerA = await findPlayerBySlackUserId(
           orgId,
@@ -307,10 +308,10 @@ export async function routeCommand(
             replyMessage:
               "The first mentioned player's Slack email is not linked to any player account.",
           };
-        playerAName = playerA.fullName;
+        playerAEmail = playerA.email;
       }
 
-      let playerBName = parsed.playerB;
+      let playerBEmail: string | null = parsed.playerB || null;
       if (parsed.playerBSlackUserId) {
         const playerB = await findPlayerBySlackUserId(
           orgId,
@@ -323,10 +324,10 @@ export async function routeCommand(
             replyMessage:
               "The second mentioned player's Slack email is not linked to any player account.",
           };
-        playerBName = playerB.fullName;
+        playerBEmail = playerB.email;
       }
 
-      if (!playerAName || !playerBName) {
+      if (!playerAEmail || !playerBEmail) {
         return {
           success: false,
           replyMessage:
@@ -337,8 +338,8 @@ export async function routeCommand(
       return handleManagerReport(
         orgId,
         orgSlug,
-        playerAName,
-        playerBName,
+        playerAEmail,
+        playerBEmail,
         parsed.games!,
         channelId,
       );

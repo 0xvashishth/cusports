@@ -67,37 +67,31 @@ export async function findPlayerBySlackUserId(
 }
 
 /**
- * Look up a player by name (exact match on full_name, case-insensitive).
+ * Look up a player by email.
  * Must be an active member of the org.
  */
-export async function findPlayerByName(
+export async function findPlayerByEmail(
   orgId: string,
-  name: string,
-): Promise<{ id: string; email: string | null; fullName: string } | null> {
-  console.log("[Slack Players] findPlayerByName:", { orgId, name })
+  email: string,
+): Promise<{ id: string; email: string; fullName: string } | null> {
+  console.log("[Slack Players] findPlayerByEmail:", { orgId, email })
   const ac = createAdminClient()
 
-  const cleanName = name.replace(/^@/, "").trim()
-  console.log("[Slack Players] Cleaned name:", cleanName)
+  const cleanEmail = email.toLowerCase().trim()
+  console.log("[Slack Players] Cleaned email:", cleanEmail)
 
-  const { data: profiles, error } = await ac
+  const { data: profile, error: profileErr } = await ac
     .from("profiles")
     .select("id, email, full_name")
-    .ilike("full_name", cleanName)
+    .eq("email", cleanEmail)
+    .single()
 
-  console.log("[Slack Players] Name search result:", { count: profiles?.length, error: error?.message })
+  console.log("[Slack Players] Email lookup result:", { profile, error: profileErr?.message })
 
-  if (!profiles || profiles.length === 0) {
-    console.log("[Slack Players] No profiles found with name:", cleanName)
+  if (!profile) {
+    console.log("[Slack Players] No profile found for email:", cleanEmail)
     return null
   }
-  if (profiles.length > 1) {
-    console.log("[Slack Players] Multiple profiles found with name:", cleanName, "- refusing to disambiguate")
-    return null
-  }
-
-  const profile = profiles[0]
-  console.log("[Slack Players] Profile found:", { id: profile.id, email: profile.email, name: profile.full_name })
 
   const { data: member, error: memberErr } = await ac
     .from("org_members")
