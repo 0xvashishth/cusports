@@ -116,6 +116,7 @@ function getRoundLabel(roundNumber: number, maxRound: number, side: BracketSide)
     4: "Round of 16",
     5: "Round of 32",
     6: "Round of 64",
+    7: "Round of 128",
   }
   return labels[fromFinal] || `Round ${roundNumber}`
 }

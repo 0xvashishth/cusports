@@ -55,6 +55,7 @@ const ROUND_LABELS: Record<number, string> = {
   4: "Round of 16",
   5: "Round of 32",
   6: "Round of 64",
+  7: "Round of 128",
 }
 
 function getRoundLabel(roundNumber: number, totalRounds: number): string {

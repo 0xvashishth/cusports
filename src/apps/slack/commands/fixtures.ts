@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getRoundLabel, getBracketSideLabel } from "@/lib/utils"
 import type { SlackCommandResult } from "../types"
 
 export async function handleFixtures(orgId: string): Promise<SlackCommandResult> {
@@ -33,7 +34,7 @@ export async function handleFixtures(orgId: string): Promise<SlackCommandResult>
     .from("bracket_matches")
     .select(`
       id, tournament_category_id, round_number, bracket_side, scheduled_at,
-      player_a_id, player_b_id
+      player_a_id, player_b_id, status
     `)
     .in("tournament_category_id", tcIds)
     .in("status", ["pending", "scheduled"])
@@ -44,6 +45,18 @@ export async function handleFixtures(orgId: string): Promise<SlackCommandResult>
 
   if (!pendingMatches || pendingMatches.length === 0) {
     return { success: true, message: "No upcoming fixtures with confirmed players found." }
+  }
+
+  const { data: allMatches } = await ac
+    .from("bracket_matches")
+    .select("tournament_category_id, round_number, bracket_side")
+    .in("tournament_category_id", tcIds)
+
+  const maxRoundBySide = new Map<string, number>()
+  for (const m of allMatches || []) {
+    const key = `${m.tournament_category_id}:${m.bracket_side}`
+    const current = maxRoundBySide.get(key) || 0
+    if (m.round_number > current) maxRoundBySide.set(key, m.round_number)
   }
 
   const playerIds = new Set<string>()
@@ -97,9 +110,11 @@ export async function handleFixtures(orgId: string): Promise<SlackCommandResult>
       for (const m of cat.matches) {
         const playerA = profileMap.get(m.player_a_id) || "Unknown"
         const playerB = profileMap.get(m.player_b_id) || "Unknown"
-        const roundLabel = `R${m.round_number}`
-        const sideLabel = m.bracket_side === "losers" ? " (Losers)" : m.bracket_side === "grand_final" ? " (Grand Final)" : ""
-        lines.push(`    ${roundLabel}${sideLabel}: ${playerA} vs ${playerB}`)
+        const maxRound = maxRoundBySide.get(`${m.tournament_category_id}:${m.bracket_side}`) || m.round_number
+        const roundLabel = getRoundLabel(m.round_number, maxRound)
+        const sideLabel = getBracketSideLabel(m.bracket_side)
+        const label = sideLabel ? `${roundLabel} (${sideLabel})` : roundLabel
+        lines.push(`    ${label}: ${playerA} vs ${playerB}`)
       }
     }
     lines.push("")

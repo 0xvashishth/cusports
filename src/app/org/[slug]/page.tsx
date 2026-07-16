@@ -84,6 +84,7 @@ export default async function OrgPage({
           4: "Round of 16",
           5: "Round of 32",
           6: "Round of 64",
+          7: "Round of 128",
         };
         const maxRoundSingle = Math.max(
           ...bm
