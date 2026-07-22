@@ -189,9 +189,9 @@ export async function isChannelAllowed(
     integration.allowed_channel_ids.length === 0
   ) {
     console.log(
-      "[Slack Client] No channel allowlist configured, all channels allowed",
+      "[Slack Client] No channel allowlist configured, no channels allowed",
     );
-    return true;
+    return false;
   }
   const allowed = integration.allowed_channel_ids.includes(channelId);
   console.log(
