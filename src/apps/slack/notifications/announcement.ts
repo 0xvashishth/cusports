@@ -47,16 +47,19 @@ export async function postAnnouncementToSlack(
 
   // const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-  const blocks: object[] = [
-    {
+  const blocks: object[] = [];
+
+  if (title) {
+    blocks.push({
       type: "header",
       text: { type: "plain_text", text: `📢 ${title}`, emoji: true },
-    },
-    {
-      type: "section",
-      text: { type: "mrkdwn", text: body },
-    },
-  ];
+    });
+  }
+
+  blocks.push({
+    type: "section",
+    text: { type: "mrkdwn", text: body },
+  });
 
   if (linkUrl) {
     blocks.push({
@@ -83,7 +86,7 @@ export async function postAnnouncementToSlack(
     "[Slack Notifications] Posting announcement to channel:",
     channelId,
   );
-  const result = await postToSlackChannelById(orgId, channelId, title, blocks);
+  const result = await postToSlackChannelById(orgId, channelId, title || body, blocks);
   console.log("[Slack Notifications] Announcement post result:", result);
   return result;
 }

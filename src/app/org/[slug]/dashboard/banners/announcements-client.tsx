@@ -39,7 +39,7 @@ export function AnnouncementsClient({ org, allowedChannelIds }: AnnouncementsCli
   }
 
   async function sendAnnouncement() {
-    if (!form.channelId || !form.title || !form.body) {
+    if (!form.channelId || !form.body) {
       setError("Please fill in all required fields")
       return
     }
@@ -123,13 +123,16 @@ export function AnnouncementsClient({ org, allowedChannelIds }: AnnouncementsCli
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="announcementTitle">Title</Label>
+              <Label htmlFor="announcementTitle">Title (optional)</Label>
               <Input
                 id="announcementTitle"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="Tournament Registration Open"
               />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to post a message without a title.
+              </p>
             </div>
 
             <div className="space-y-2">

@@ -38,9 +38,9 @@ export async function POST(
   const body = await request.json()
   const { channelId, title, announcementBody, linkUrl } = body
 
-  if (!channelId || !title || !announcementBody) {
+  if (!channelId || !announcementBody) {
     return NextResponse.json(
-      { error: "Missing required fields: channelId, title, announcementBody" },
+      { error: "Missing required fields: channelId, announcementBody" },
       { status: 400 },
     )
   }
