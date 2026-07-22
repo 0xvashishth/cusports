@@ -115,6 +115,8 @@ export function TournamentDetailClient({
   const [advancingRound, setAdvancingRound] = useState<string | null>(null);
   const [notifying, setNotifying] = useState(false);
   const [notifyingPublished, setNotifyingPublished] = useState(false);
+  const [notifyPublishedOpen, setNotifyPublishedOpen] = useState(false);
+  const [notifyDescription, setNotifyDescription] = useState("");
 
   const [editName, setEditName] = useState(tournament.name);
   const [editStartDate, setEditStartDate] = useState(tournament.start_date);
@@ -357,13 +359,17 @@ export function TournamentDetailClient({
     setNotifying(false);
   }
 
-  async function notifyPublished() {
+  async function notifyPublished(description?: string) {
     setNotifyingPublished(true);
     setError(null);
 
     const res = await fetch(
       `/api/org/${org.slug}/tournaments/${tournament.id}/notify-published`,
-      { method: "POST" },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: description || undefined }),
+      },
     );
 
     const data = await res.json();
@@ -371,6 +377,8 @@ export function TournamentDetailClient({
       setError(data.error || "Failed to send notification");
     }
     setNotifyingPublished(false);
+    setNotifyPublishedOpen(false);
+    setNotifyDescription("");
   }
 
   const safeEntries = entries ?? [];
@@ -883,7 +891,7 @@ export function TournamentDetailClient({
                     Send a Slack notification to announce the tournament. Players can react with ✅ to register.
                   </p>
                   <Button
-                    onClick={notifyPublished}
+                    onClick={() => setNotifyPublishedOpen(true)}
                     disabled={notifyingPublished}
                     className="w-full gap-2"
                   >
@@ -1018,6 +1026,42 @@ export function TournamentDetailClient({
               {addingPlayers
                 ? "Adding..."
                 : `Add ${selectedPlayers.length} Player${selectedPlayers.length !== 1 ? "s" : ""}`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={notifyPublishedOpen} onOpenChange={setNotifyPublishedOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Notify Publication</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <p className="text-sm text-muted-foreground">
+              Send a Slack notification to announce the tournament. Players can react with ✅ to register.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="notify-description">Description (optional)</Label>
+              <textarea
+                id="notify-description"
+                placeholder="Optional description (supports markdown & new lines)"
+                value={notifyDescription}
+                onChange={(e) => setNotifyDescription(e.target.value)}
+                rows={4}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y"
+              />
+            </div>
+            <Button
+              onClick={() => notifyPublished(notifyDescription || undefined)}
+              disabled={notifyingPublished}
+              className="w-full gap-2"
+            >
+              {notifyingPublished ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Bell className="h-4 w-4" />
+              )}
+              {notifyingPublished ? "Sending..." : "Send Notification"}
             </Button>
           </div>
         </DialogContent>

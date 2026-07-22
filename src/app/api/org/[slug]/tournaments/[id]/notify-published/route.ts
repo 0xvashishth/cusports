@@ -4,10 +4,11 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { notifyTournamentPublished } from "@/apps/slack/notifications/tournament"
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
   const { slug, id } = await params
+  const { description } = await request.json().catch(() => ({}))
 
   const supabase = await createClient()
   const {
@@ -61,7 +62,7 @@ export async function POST(
     .filter(Boolean) as { id: string; name: string; is_doubles: boolean; organization_id: string }[]
 
   try {
-    const result = await notifyTournamentPublished(org.id, slug, tournament, categories)
+    const result = await notifyTournamentPublished(org.id, slug, tournament, categories, description)
     if (result.ok && result.ts) {
       await adminClient
         .from("tournaments")

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -19,6 +20,7 @@ import {
   Moon,
   Sun,
   ChevronRight,
+  LogOut,
 } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 
@@ -66,9 +68,11 @@ const navItems = [
 function SidebarNav({
   slug,
   onNavClick,
+  onSignOut,
 }: {
   slug: string;
   onNavClick?: () => void;
+  onSignOut?: () => void;
 }) {
   const pathname = usePathname();
 
@@ -114,7 +118,7 @@ function SidebarNav({
         </nav>
       </ScrollArea>
       <Separator />
-      <div className="p-4">
+      <div className="p-4 space-y-2">
         <Link
           href={`/org/${slug}`}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -122,6 +126,13 @@ function SidebarNav({
           <ChevronRight className="h-4 w-4" />
           View site
         </Link>
+        <button
+          onClick={onSignOut}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </button>
       </div>
     </div>
   );
@@ -132,12 +143,19 @@ export function DashboardLayout({
   organization,
 }: DashboardLayoutProps) {
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/auth/login");
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -153,6 +171,7 @@ export function DashboardLayout({
             <SidebarNav
               slug={organization.slug}
               onNavClick={() => setMobileOpen(false)}
+              onSignOut={handleSignOut}
             />
           </SheetContent>
         </Sheet>
@@ -162,7 +181,7 @@ export function DashboardLayout({
           </div>
           {organization.name}
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
           {mounted && (
             <Button
               variant="ghost"
@@ -176,12 +195,20 @@ export function DashboardLayout({
               )}
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSignOut}
+            title="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </header>
 
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:w-56 lg:flex-col lg:border-r">
-        <SidebarNav slug={organization.slug} />
+        <SidebarNav slug={organization.slug} onSignOut={handleSignOut} />
       </aside>
 
       {/* Main content */}
@@ -213,6 +240,14 @@ export function DashboardLayout({
                 )}
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSignOut}
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </header>
 

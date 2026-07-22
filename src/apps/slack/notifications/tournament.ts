@@ -105,6 +105,7 @@ export async function notifyTournamentPublished(
   orgSlug: string,
   tournament: Tournament,
   categories: Category[],
+  description?: string,
 ): Promise<{ ok: boolean; ts: string | null }> {
   console.log("[Slack Notifications] notifyTournamentPublished called:", { orgId, orgSlug, tournamentName: tournament.name })
 
@@ -174,6 +175,12 @@ export async function notifyTournamentPublished(
       {
         type: "section",
         text: { type: "mrkdwn", text: `*Venue:* ${tournament.venue}` },
+      },
+    ] : []),
+    ...(description ? [
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: `${description}` },
       },
     ] : []),
     {
