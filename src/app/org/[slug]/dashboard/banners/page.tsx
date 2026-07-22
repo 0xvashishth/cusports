@@ -18,11 +18,24 @@ export default async function BannersPage({ params }: { params: Promise<{ slug: 
     .eq("organization_id", org.id)
     .order("starts_at", { ascending: false })
 
+  const { data: integration } = await admin
+    .from("org_integrations")
+    .select("allowed_channel_ids")
+    .eq("organization_id", org.id)
+    .single()
+
   const { data: { user } } = await supabase.auth.getUser()
+
+  const allowedChannelIds = integration?.allowed_channel_ids || []
 
   return (
     <DashboardLayout organization={org}>
-      <BannersClient org={org} announcements={announcements || []} userId={user?.id || ""} />
+      <BannersClient
+        org={org}
+        announcements={announcements || []}
+        userId={user?.id || ""}
+        allowedChannelIds={allowedChannelIds}
+      />
     </DashboardLayout>
   )
 }

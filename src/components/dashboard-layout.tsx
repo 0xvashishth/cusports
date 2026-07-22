@@ -52,7 +52,7 @@ const navItems = [
     icon: Trophy,
   },
   {
-    label: "Banners",
+    label: "Announcements",
     href: (slug: string) => `/org/${slug}/dashboard/banners`,
     icon: Megaphone,
   },
