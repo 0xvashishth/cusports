@@ -76,6 +76,7 @@ export interface Tournament {
   start_date: string
   end_date: string
   status: TournamentStatus
+  rules_and_info: string | null
   slack_notification_ts: string | null
 }
 

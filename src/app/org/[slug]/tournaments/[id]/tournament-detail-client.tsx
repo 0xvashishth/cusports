@@ -39,6 +39,7 @@ import type {
   SeedingMethod,
   ByeHandling,
 } from "@/lib/types";
+import Markdown from "react-markdown";
 import {
   Calendar,
   Users,
@@ -52,6 +53,8 @@ import {
   X,
   RotateCcw,
   Bell,
+  FileText,
+  Info,
 } from "lucide-react";
 
 interface TournamentDetailClientProps {
@@ -121,6 +124,7 @@ export function TournamentDetailClient({
   const [editName, setEditName] = useState(tournament.name);
   const [editStartDate, setEditStartDate] = useState(tournament.start_date);
   const [editEndDate, setEditEndDate] = useState(tournament.end_date);
+  const [editRulesAndInfo, setEditRulesAndInfo] = useState(tournament.rules_and_info || "");
   const [saving, setSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -328,6 +332,7 @@ export function TournamentDetailClient({
           name: editName,
           start_date: editStartDate,
           end_date: editEndDate,
+          rules_and_info: editRulesAndInfo || null,
         }),
       },
     );
@@ -484,6 +489,10 @@ export function TournamentDetailClient({
           <TabsTrigger value="players" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Players
+          </TabsTrigger>
+          <TabsTrigger value="rules" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Rules & Info
           </TabsTrigger>
           {isManager && (
             <TabsTrigger value="settings" className="flex items-center gap-2">
@@ -662,6 +671,34 @@ export function TournamentDetailClient({
           )}
         </TabsContent>
 
+        <TabsContent value="rules" className="space-y-6 pt-6">
+          {tournament.rules_and_info ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Info className="h-5 w-5 text-primary" />
+                  Important Rules & Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <Markdown>{tournament.rules_and_info}</Markdown>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <FileText className="h-12 w-12 text-muted-foreground/30 mb-4" />
+              <p className="text-lg font-medium">No rules or info added yet</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {isManager
+                  ? "Add rules and information from the Settings tab"
+                  : "Check back later for tournament rules and details"}
+              </p>
+            </div>
+          )}
+        </TabsContent>
+
         {isManager && tournamentStatus !== "draft" && (
           <TabsContent value="settings" className="space-y-6 pt-6">
             {tournamentStatus === "published" && (
@@ -836,6 +873,52 @@ export function TournamentDetailClient({
                   </Button>
                 </CardContent>
               </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Rules & Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Add important rules, scheduling info, or any other details for participants. Supports basic markdown formatting (headers, bold, italic, lists, links).
+                </p>
+                <div className="space-y-2">
+                  <Label>Rules & Info (Markdown supported)</Label>
+                  <textarea
+                    placeholder={"## Tournament Rules\n\n- Matches are best of 5 games\n- Each game is played to 11 points\n- Players must arrive 15 minutes before their scheduled match\n\n## Venue Info\n\n- **Address:** 123 Sports Arena\n- **Parking:** Free parking available\n- **Contact:** tournament@example.com"}
+                    value={editRulesAndInfo}
+                    onChange={(e) => setEditRulesAndInfo(e.target.value)}
+                    rows={10}
+                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono"
+                  />
+                </div>
+                {editRulesAndInfo && (
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Preview</Label>
+                    <div className="border rounded-md p-4 bg-muted/30">
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <Markdown>{editRulesAndInfo}</Markdown>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <Button
+                  onClick={updateTournament}
+                  disabled={saving}
+                  className="gap-2"
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
+                  {saving ? "Saving..." : "Save Rules & Info"}
+                </Button>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>
