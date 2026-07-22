@@ -9,8 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Megaphone, Plus, ExternalLink, Clock, Pencil, Trash2, Send, Hash } from "lucide-react"
+import { Megaphone, Plus, ExternalLink, Clock, Pencil, Trash2 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import type { Announcement, Organization } from "@/lib/types"
 
@@ -18,10 +17,9 @@ interface BannersClientProps {
   org: Organization
   announcements: Announcement[]
   userId: string
-  allowedChannelIds: string[]
 }
 
-export function BannersClient({ org, announcements, userId, allowedChannelIds }: BannersClientProps) {
+export function BannersClient({ org, announcements, userId }: BannersClientProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Announcement | null>(null)
@@ -33,20 +31,13 @@ export function BannersClient({ org, announcements, userId, allowedChannelIds }:
     linkUrl: "",
     startsAt: "",
     endsAt: "",
-    postToSlack: false,
-    slackChannelId: "",
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [slackPosting, setSlackPosting] = useState(false)
-  const [slackError, setSlackError] = useState<string | null>(null)
-  const [slackSuccess, setSlackSuccess] = useState(false)
 
   function resetForm() {
-    setForm({ title: "", body: "", linkUrl: "", startsAt: "", endsAt: "", postToSlack: false, slackChannelId: "" })
+    setForm({ title: "", body: "", linkUrl: "", startsAt: "", endsAt: "" })
     setError(null)
-    setSlackError(null)
-    setSlackSuccess(false)
   }
 
   function openCreate() {
@@ -63,43 +54,9 @@ export function BannersClient({ org, announcements, userId, allowedChannelIds }:
       linkUrl: a.link_url || "",
       startsAt: a.starts_at.slice(0, 16),
       endsAt: a.ends_at.slice(0, 16),
-      postToSlack: false,
-      slackChannelId: "",
     })
     setError(null)
-    setSlackError(null)
-    setSlackSuccess(false)
     setOpen(true)
-  }
-
-  async function postToSlack(channelId: string, title: string, body: string, linkUrl?: string) {
-    setSlackPosting(true)
-    setSlackError(null)
-    setSlackSuccess(false)
-
-    try {
-      const res = await fetch(`/api/org/${org.slug}/announcements/announce`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId, title, announcementBody: body, linkUrl }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setSlackError(data.error || "Failed to post to Slack")
-        setSlackPosting(false)
-        return false
-      }
-
-      setSlackSuccess(true)
-      setSlackPosting(false)
-      return true
-    } catch {
-      setSlackError("Failed to post to Slack")
-      setSlackPosting(false)
-      return false
-    }
   }
 
   async function saveAnnouncement() {
@@ -142,10 +99,6 @@ export function BannersClient({ org, announcements, userId, allowedChannelIds }:
       }
     }
 
-    if (form.postToSlack && form.slackChannelId) {
-      await postToSlack(form.slackChannelId, form.title, form.body, form.linkUrl || undefined)
-    }
-
     setSaving(false)
     setOpen(false)
     setEditing(null)
@@ -182,23 +135,23 @@ export function BannersClient({ org, announcements, userId, allowedChannelIds }:
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Announcements</h1>
-          <p className="text-muted-foreground mt-1">{announcements.length} announcement{announcements.length !== 1 ? "s" : ""}</p>
+          <h2 className="text-2xl font-bold tracking-tight">Banners</h2>
+          <p className="text-muted-foreground mt-1">{announcements.length} banner{announcements.length !== 1 ? "s" : ""}</p>
         </div>
         <Button className="gap-2" onClick={openCreate}>
           <Plus className="h-4 w-4" />
-          Create Announcement
+          Create Banner
         </Button>
       </div>
 
       {/* Create / Edit Dialog */}
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(null); resetForm(); } }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Announcement" : "Create Announcement"}</DialogTitle>
+            <DialogTitle>{editing ? "Edit Banner" : "Create Banner"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
@@ -214,14 +167,11 @@ export function BannersClient({ org, announcements, userId, allowedChannelIds }:
               <Label htmlFor="body">Body</Label>
               <textarea
                 id="body"
-                className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-mono"
+                className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 value={form.body}
                 onChange={(e) => setForm({ ...form, body: e.target.value })}
-                placeholder="Announcement details...&#10;&#10;Supports Slack formatting:&#10;*bold* _italic_ ~strikethrough~&#10;`code` ```code block```&#10;> quote"
+                placeholder="Banner details..."
               />
-              <p className="text-xs text-muted-foreground">
-                Supports Slack formatting: <code className="bg-muted px-1 rounded">*bold*</code> <code className="bg-muted px-1 rounded">_italic_</code> <code className="bg-muted px-1 rounded">~strikethrough~</code> <code className="bg-muted px-1 rounded">`code`</code>
-              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="linkUrl">Link URL (optional)</Label>
@@ -252,80 +202,11 @@ export function BannersClient({ org, announcements, userId, allowedChannelIds }:
                 />
               </div>
             </div>
-
-            <Separator />
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Send className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-base font-semibold">Post to Slack</Label>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Send this announcement to a Slack channel via the bot.
-              </p>
-
-              {allowedChannelIds.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="postToSlack"
-                      checked={form.postToSlack}
-                      onChange={(e) => setForm({ ...form, postToSlack: e.target.checked, slackChannelId: e.target.checked ? allowedChannelIds[0] : "" })}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
-                    <Label htmlFor="postToSlack" className="text-sm">Also post to Slack channel</Label>
-                  </div>
-
-                  {form.postToSlack && (
-                    <div className="space-y-2 ml-6">
-                      <Label htmlFor="slackChannel">Select Channel</Label>
-                      <div className="flex items-center gap-2">
-                        <Hash className="h-4 w-4 text-muted-foreground" />
-                        <select
-                          id="slackChannel"
-                          value={form.slackChannelId}
-                          onChange={(e) => setForm({ ...form, slackChannelId: e.target.value })}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        >
-                          {allowedChannelIds.map((channelId) => (
-                            <option key={channelId} value={channelId}>
-                              {channelId}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Channel must be in your allowed channels list in Integrations settings.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
-                  No Slack channels configured. Add allowed channels in{" "}
-                  <a href={`/org/${org.slug}/dashboard/integrations/slack`} className="text-primary hover:underline">
-                    Integrations
-                  </a>{" "}
-                  to enable Slack posting.
-                </div>
-              )}
-
-              {slackError && (
-                <p className="text-sm text-destructive bg-destructive/10 rounded-md p-2">{slackError}</p>
-              )}
-              {slackSuccess && (
-                <p className="text-sm text-green-600 bg-green-50 dark:bg-green-950/50 rounded-md p-2">
-                  Posted to Slack successfully!
-                </p>
-              )}
-            </div>
-
             {error && (
               <p className="text-sm text-destructive bg-destructive/10 rounded-md p-2">{error}</p>
             )}
-            <Button onClick={saveAnnouncement} disabled={saving || slackPosting} className="w-full gap-2">
-              {saving ? "Saving..." : editing ? "Save Changes" : "Create Announcement"}
+            <Button onClick={saveAnnouncement} disabled={saving} className="w-full gap-2">
+              {saving ? "Saving..." : editing ? "Save Changes" : "Create Banner"}
             </Button>
           </div>
         </DialogContent>
@@ -335,7 +216,7 @@ export function BannersClient({ org, announcements, userId, allowedChannelIds }:
       <Dialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null) }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Announcement</DialogTitle>
+            <DialogTitle>Delete Banner</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Are you sure you want to delete &quot;{deleteTarget?.title}&quot;? This action cannot be undone.
@@ -351,11 +232,11 @@ export function BannersClient({ org, announcements, userId, allowedChannelIds }:
       </Dialog>
 
       {announcements.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Megaphone className="h-16 w-16 text-muted-foreground/30 mb-4" />
-          <p className="text-lg font-medium">No announcements yet</p>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Megaphone className="h-12 w-12 text-muted-foreground/30 mb-3" />
+          <p className="text-lg font-medium">No banners yet</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Create an announcement to display on your org page and share on Slack
+            Create a banner to display on your org page
           </p>
         </div>
       ) : (

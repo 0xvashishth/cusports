@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { BannersClient } from "./banners-client"
+import { AnnouncementsClient } from "./announcements-client"
+import { Separator } from "@/components/ui/separator"
 
 export default async function BannersPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -30,12 +32,18 @@ export default async function BannersPage({ params }: { params: Promise<{ slug: 
 
   return (
     <DashboardLayout organization={org}>
-      <BannersClient
-        org={org}
-        announcements={announcements || []}
-        userId={user?.id || ""}
-        allowedChannelIds={allowedChannelIds}
-      />
+      <div className="space-y-12">
+        <BannersClient
+          org={org}
+          announcements={announcements || []}
+          userId={user?.id || ""}
+        />
+        <Separator />
+        <AnnouncementsClient
+          org={org}
+          allowedChannelIds={allowedChannelIds}
+        />
+      </div>
     </DashboardLayout>
   )
 }
