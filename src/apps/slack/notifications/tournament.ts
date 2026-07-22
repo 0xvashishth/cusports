@@ -47,7 +47,7 @@ export async function notifyTournamentCreated(
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-  const tournamentUrl = `${siteUrl}/org/${orgSlug}/tournaments/${tournament.id}`
+  const tournamentUrl = `${siteUrl}/org/${orgSlug}/tournaments/${tournament.id}?tab=rules`
 
   const categoryNames = categories.map((c) => c.name).join(", ") || "None"
   const startDate = new Date(tournament.start_date).toLocaleDateString("en-US", {
@@ -86,7 +86,7 @@ export async function notifyTournamentCreated(
       elements: [
         {
           type: "button",
-          text: { type: "plain_text", text: "View Tournament", emoji: true },
+          text: { type: "plain_text", text: "View Rules", emoji: true },
           url: tournamentUrl,
           style: "primary",
         },
@@ -140,7 +140,7 @@ export async function notifyTournamentPublished(
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-  const tournamentUrl = `${siteUrl}/org/${orgSlug}/tournaments/${tournament.id}`
+  const tournamentUrl = `${siteUrl}/org/${orgSlug}/tournaments/${tournament.id}?tab=rules`
 
   const categoryNames = categories.map((c) => c.name).join(", ") || "None"
   const startDate = new Date(tournament.start_date).toLocaleDateString("en-US", {
@@ -188,7 +188,7 @@ export async function notifyTournamentPublished(
       elements: [
         {
           type: "button",
-          text: { type: "plain_text", text: "View Tournament", emoji: true },
+          text: { type: "plain_text", text: "View Rules", emoji: true },
           url: tournamentUrl,
           style: "primary",
         },
@@ -248,7 +248,7 @@ export async function notifyTournamentCompleted(
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-  const tournamentUrl = `${siteUrl}/org/${orgSlug}/tournaments/${tournament.id}`
+  const tournamentUrl = `${siteUrl}/org/${orgSlug}/tournaments/${tournament.id}?tab=rules`
 
   const startDate = new Date(tournament.start_date).toLocaleDateString("en-US", {
     month: "long", day: "numeric", year: "numeric",
@@ -297,7 +297,7 @@ export async function notifyTournamentCompleted(
       elements: [
         {
           type: "button",
-          text: { type: "plain_text", text: "View Tournament", emoji: true },
+          text: { type: "plain_text", text: "View Rules", emoji: true },
           url: tournamentUrl,
           style: "primary",
         },

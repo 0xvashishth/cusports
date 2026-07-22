@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -85,11 +85,18 @@ export function TournamentDetailClient({
   isManager,
 }: TournamentDetailClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const tournamentStatus = tournament.status as string;
 
   const [entries, setEntries] = useState(initialEntries ?? []);
   const [bracketMatches, setBracketMatches] = useState<BracketMatch[]>(initialBracketMatches ?? []);
-  const [activeTab, setActiveTab] = useState("matches");
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get("tab");
+    if (tab && ["matches", "players", "rules", "settings"].includes(tab)) {
+      return tab;
+    }
+    return "matches";
+  });
 
   const [addPlayerOpen, setAddPlayerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(
