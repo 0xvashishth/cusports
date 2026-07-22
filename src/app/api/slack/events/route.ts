@@ -15,107 +15,75 @@ export async function POST(request: Request) {
   }
 
   const eventType = body.event?.type
+  const teamId = body.team_id as string
+  const eventId = body.event_id as string
+
+  const orgInfo = await lookupOrgBySlackTeam(teamId)
+  if (!orgInfo) {
+    console.log("[Slack Events] No org found for team_id:", teamId)
+    return NextResponse.json({ ok: true })
+  }
+
+  const channel = eventType === "app_mention"
+    ? body.event.channel
+    : body.event.item?.channel
+
+  if (!channel) {
+    console.log("[Slack Events] No channel found in event, ignoring")
+    return NextResponse.json({ ok: true })
+  }
+
+  const channelAllowed = await isChannelAllowed(orgInfo.orgId, channel)
+  console.log("[Slack Events] Channel allowed:", channelAllowed, "for channel:", channel)
+  if (!channelAllowed) {
+    console.log("[Slack Events] Channel NOT allowed, ignoring event:", eventId)
+    return NextResponse.json({ ok: true })
+  }
+
+  const ac = createAdminClient()
+  const { error: insertErr } = await ac
+    .from("slack_events")
+    .insert({
+      event_id: eventId,
+      team_id: teamId,
+      channel_id: channel,
+      user_id: body.event.user,
+      event_type: eventType,
+      raw_json: body,
+    })
+
+  if (insertErr) {
+    if (insertErr.code === "23505") {
+      console.log("[Slack Events] Duplicate event, skipping:", eventId)
+      return NextResponse.json({ ok: true })
+    }
+    console.error("[Slack Events] Failed to insert event for dedup:", insertErr.message)
+    return NextResponse.json({ ok: true })
+  }
+
+  console.log("[Slack Events] New event recorded, processing:", eventId)
+
+  const botToken = await getSlackBotToken(orgInfo.orgId)
+  if (!botToken) {
+    console.log("[Slack Events] No bot token configured for org:", orgInfo.orgId)
+    return NextResponse.json({ ok: true })
+  }
 
   if (eventType === "reaction_added" || eventType === "reaction_removed") {
-    const eventId = body.event_id as string
-    const teamId = body.team_id as string
     const { reaction, user, item } = body.event
     const messageTs = item?.ts
-    const channel = item?.channel
 
     console.log("[Slack Events] Reaction event:", { eventType, eventId, reaction, user, messageTs, channel, teamId })
-
-    const ac = createAdminClient()
-    const { error: insertErr } = await ac
-      .from("slack_events")
-      .insert({
-        event_id: eventId,
-        team_id: teamId,
-        channel_id: channel || "",
-        user_id: user,
-        event_type: eventType,
-        raw_json: body,
-      })
-
-    if (insertErr) {
-      if (insertErr.code === "23505") {
-        console.log("[Slack Events] Duplicate reaction event, skipping:", eventId)
-        return NextResponse.json({ ok: true })
-      }
-      console.error("[Slack Events] Failed to insert reaction event for dedup:", insertErr.message)
-    }
-
-    const orgInfo = await lookupOrgBySlackTeam(teamId)
-    if (!orgInfo) {
-      console.log("[Slack Events] No org found for team_id:", teamId)
-      return NextResponse.json({ ok: true })
-    }
-
-    const botToken = await getSlackBotToken(orgInfo.orgId)
-    if (!botToken) {
-      console.log("[Slack Events] No bot token configured for org:", orgInfo.orgId)
-      return NextResponse.json({ ok: true })
-    }
 
     if (eventType === "reaction_added") {
       await handleReactionAdded(orgInfo.orgId, orgInfo.orgSlug, user, reaction, messageTs, botToken)
     } else {
       await handleReactionRemoved(orgInfo.orgId, user, reaction, messageTs, botToken)
     }
-
-    return NextResponse.json({ ok: true })
-  }
-
-  if (eventType === "app_mention") {
-    const eventId = body.event_id as string
-    const teamId = body.team_id as string
-    const { text, channel, user, ts: eventTimestamp } = body.event
+  } else if (eventType === "app_mention") {
+    const { text, user, ts: eventTimestamp } = body.event
 
     console.log("[Slack Events] App mention:", { eventId, text, channel, user, teamId })
-
-    const ac = createAdminClient()
-    const { error: insertErr } = await ac
-      .from("slack_events")
-      .insert({
-        event_id: eventId,
-        team_id: teamId,
-        channel_id: channel,
-        user_id: user,
-        event_type: "app_mention",
-        raw_json: body,
-      })
-
-    if (insertErr) {
-      if (insertErr.code === "23505") {
-        console.log("[Slack Events] Duplicate event, skipping:", eventId)
-        return NextResponse.json({ ok: true })
-      }
-      console.error("[Slack Events] Failed to insert event for dedup:", insertErr.message)
-      return NextResponse.json({ ok: true })
-    }
-
-    console.log("[Slack Events] New event recorded, processing:", eventId)
-
-    const orgInfo = await lookupOrgBySlackTeam(teamId)
-    console.log("[Slack Events] Org lookup result:", orgInfo)
-    if (!orgInfo) {
-      console.log("[Slack Events] No org found for team_id:", teamId)
-      return NextResponse.json({ ok: true })
-    }
-
-    const channelAllowed = await isChannelAllowed(orgInfo.orgId, channel)
-    console.log("[Slack Events] Channel allowed:", channelAllowed, "for channel:", channel)
-    if (!channelAllowed) {
-      console.log("[Slack Events] Channel NOT allowed, ignoring")
-      return NextResponse.json({ ok: true })
-    }
-
-    const botToken = await getSlackBotToken(orgInfo.orgId)
-    console.log("[Slack Events] Bot token found:", !!botToken)
-    if (!botToken) {
-      console.log("[Slack Events] No bot token configured for org:", orgInfo.orgId)
-      return NextResponse.json({ ok: true })
-    }
 
     console.log("[Slack Events] Routing command:", { orgId: orgInfo.orgId, orgSlug: orgInfo.orgSlug, user, channel, text })
     const result = await routeCommand(
