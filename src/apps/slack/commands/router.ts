@@ -1,5 +1,8 @@
 import { getSlackBotToken } from "../client";
-import { findPlayerBySlackUserId, findPlayerByEmail } from "../validation/players";
+import {
+  findPlayerBySlackUserId,
+  findPlayerByEmail,
+} from "../validation/players";
 import { isManager } from "../validation/matches";
 import { handlePlayerReport } from "./report-match";
 import { handleManagerReport } from "./manager-report";
@@ -386,8 +389,6 @@ export async function routeCommand(
           "`fixtures` - Show all upcoming matches with confirmed players",
           "`rankings` - Show player rankings for all categories",
           "`report match vs @Opponent 11-7, 9-11, 11-5` - Report your match result",
-          "`report result @Player1 vs @Player2 11-7, 9-11` - Manager: report any match",
-          "`help` - Show this message",
         ].join("\n"),
       };
 
