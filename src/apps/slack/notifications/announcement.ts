@@ -88,5 +88,5 @@ export async function postAnnouncementToSlack(
   );
   const result = await postToSlackChannelById(orgId, channelId, title || body, blocks);
   console.log("[Slack Notifications] Announcement post result:", result);
-  return result;
+  return result.ok;
 }

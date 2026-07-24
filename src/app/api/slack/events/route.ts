@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     if (result.replyMessage) {
       console.log("[Slack Events] Posting reply to channel:", channel)
       const postResult = await postToSlackChannelById(orgInfo.orgId, channel, result.replyMessage)
-      console.log("[Slack Events] Post result:", postResult)
+      console.log("[Slack Events] Post result:", postResult.ok)
     }
   } else {
     console.log("[Slack Events] Unhandled event type:", eventType || "none")

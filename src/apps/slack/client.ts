@@ -91,7 +91,7 @@ export async function postToSlackChannelById(
   channelId: string,
   message: string,
   blocks?: object[],
-): Promise<boolean> {
+): Promise<{ ok: boolean; ts: string | null }> {
   console.log("[Slack Client] postToSlackChannelById called:", {
     orgId,
     channelId,
@@ -102,7 +102,7 @@ export async function postToSlackChannelById(
       "[Slack Client] No bot token, cannot post to channel:",
       channelId,
     );
-    return false;
+    return { ok: false, ts: null };
   }
 
   const payload: Record<string, unknown> = {
@@ -124,6 +124,80 @@ export async function postToSlackChannelById(
   const data = await res.json();
   console.log(
     "[Slack Client] chat.postMessage response:",
+    JSON.stringify(data, null, 2),
+  );
+  return { ok: data.ok === true, ts: data.ts || null };
+}
+
+export async function replyInThread(
+  orgId: string,
+  channelId: string,
+  threadTs: string,
+  message: string,
+): Promise<boolean> {
+  console.log("[Slack Client] replyInThread called:", {
+    orgId,
+    channelId,
+    threadTs,
+  });
+  const token = await getSlackBotToken(orgId);
+  if (!token) {
+    console.log("[Slack Client] No bot token, cannot reply in thread");
+    return false;
+  }
+
+  const res = await fetch("https://slack.com/api/chat.postMessage", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      channel: channelId,
+      thread_ts: threadTs,
+      text: message,
+    }),
+  });
+
+  const data = await res.json();
+  console.log(
+    "[Slack Client] chat.postMessage (thread reply) response:",
+    JSON.stringify(data, null, 2),
+  );
+  return data.ok === true;
+}
+
+export async function deleteMessage(
+  orgId: string,
+  channelId: string,
+  messageTs: string,
+): Promise<boolean> {
+  console.log("[Slack Client] deleteMessage called:", {
+    orgId,
+    channelId,
+    messageTs,
+  });
+  const token = await getSlackBotToken(orgId);
+  if (!token) {
+    console.log("[Slack Client] No bot token, cannot delete message");
+    return false;
+  }
+
+  const res = await fetch("https://slack.com/api/chat.delete", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      channel: channelId,
+      ts: messageTs,
+    }),
+  });
+
+  const data = await res.json();
+  console.log(
+    "[Slack Client] chat.delete response:",
     JSON.stringify(data, null, 2),
   );
   return data.ok === true;
