@@ -393,11 +393,7 @@ export async function routeCommand(
       };
 
     default:
-      console.log("[Slack Router] Unknown command, raw text:", rawText);
-      return {
-        success: false,
-        replyMessage:
-          "I didn't understand that command. Try:\n`report match vs @Opponent 11-7, 9-11, 11-5`\nor type `help` for all commands.",
-      };
+      console.log("[Slack Router] Unknown command, ignoring:", rawText);
+      return { success: true };
   }
 }
